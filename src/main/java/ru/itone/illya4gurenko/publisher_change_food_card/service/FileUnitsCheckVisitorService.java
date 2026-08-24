@@ -1,10 +1,14 @@
 package ru.itone.illya4gurenko.publisher_change_food_card.service;
 
+import org.springframework.stereotype.Service;
+
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Stream;
 
+@Service
 public class FileUnitsCheckVisitorService implements FileUnitsCheckVisitor {
     private final ValidDataService validDataService;
 
@@ -14,6 +18,11 @@ public class FileUnitsCheckVisitorService implements FileUnitsCheckVisitor {
 
     @Override
     public boolean visit(Path path) throws IOException {
+        try {
+            Files.readAllLines(path, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            return false;
+        }
         try {
             String firstLine;
             try (Stream<String> lines = Files.lines(path)) {
@@ -35,7 +44,7 @@ public class FileUnitsCheckVisitorService implements FileUnitsCheckVisitor {
                     validDataService.count(path) == count;
 
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            return false;
         }
     }
 }

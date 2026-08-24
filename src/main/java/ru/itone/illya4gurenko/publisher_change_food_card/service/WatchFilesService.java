@@ -9,14 +9,11 @@ import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.function.Consumer;
+
 
 @Service
 public class WatchFilesService {
     private final ValidDataService validDataService;
-
-    @Value("${files.dir}")
-    private String dirForFiles;
 
     @Autowired
     public WatchFilesService(ValidDataService validDataService) {
@@ -30,14 +27,23 @@ public class WatchFilesService {
             return true;
         }
     }
-    
-    public void findAllFiles(Path dir, Consumer<Path> consumer) {
+    //если он всему подходит то переименовать в ин прогресс и в другом сервисе вызывая проверку строк
+    // раскидываем их в ошиьку и успех
+    public void findAllFilesAndRename(Path dir) {
+        int co = 0;
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, validDataService::isFileEnrollFilter)) {
             for (Path pathFile : stream) {
-                consumer.accept(pathFile);
+                try{
+                    String newName = pathFile.getFileName().toString() + ".in-progress";
+                    Path newPath = pathFile.resolveSibling(newName);
+                    Files.move(pathFile, newPath);
+                    co++;
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
             }
+            System.out.println(co);
         } catch (IOException | DirectoryIteratorException x) {
-
             throw new RuntimeException();
         }
     }

@@ -1,6 +1,5 @@
 package ru.itone.illya4gurenko.publisher_change_food_card.service;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -10,27 +9,23 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 @Service
-@RequiredArgsConstructor
 public class ValidDataService {
     private static final Pattern FILE_TITLE_PATTERN =
-            Pattern.compile("^Z\\d{6}\\.[A-Z0-9]+_ENROLL\\d{3}[A-Z0-9]\\.\\d{3}$");
+            Pattern.compile("^Z\\d{6}\\.[A-Za-z0-9]+_ENROLL\\d+\\.\\d{3}$");
 
     private static final Pattern HEADER_PATTERN =
-            Pattern.compile("^H \\d{8} \\d{6} (IMMEDIATE|IN-TIME  )(?:\\d{8}| {8}) (?:\\d{6}| {6})$");
+            Pattern.compile("^H \\d{8} \\d{6} (IMMEDIATE|INTIME   (?: \\d{8} \\d{6})?)$");
 
     private static final Pattern BODY_PATTERN =
-            Pattern.compile("^.{100}.{30}(DR|CR|ZR).{20}$");
+            Pattern.compile("^.{100}.{30}(DR|CR|ZR) {0,19}\\d+(\\.\\d{1,2})?$");
 
     private static final Pattern FOOTER_PATTERN =
-            Pattern.compile("^T {9}[ \\d]{10}$");
-
-    private final ValidDataService validDataService;
+            Pattern.compile("^T {9} *\\d+$");
 
     public boolean isFileEnrollFilter(Path path) {
         String nameFile = path.getFileName().toString();
-        if (nameFile.endsWith(".in_progress") || nameFile.endsWith(".success") || nameFile.endsWith(".error")) {
-            return false;
-        }
+        if(!FILE_TITLE_PATTERN.matcher(nameFile).matches())
+            System.out.println("nonononononoononononon");
         return nameFile != null && FILE_TITLE_PATTERN.matcher(nameFile).matches();
     }
 
