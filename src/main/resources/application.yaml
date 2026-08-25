@@ -17,5 +17,4 @@ spring:
       driverClassName: org.postgresql.Driver
   files:
     dir: D:/gpb_tasks/generator_file/generated
-    error: generated/error
-    success: generated/success
+    data: ./data

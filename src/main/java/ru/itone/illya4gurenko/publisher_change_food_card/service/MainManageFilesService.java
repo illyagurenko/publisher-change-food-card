@@ -2,6 +2,7 @@ package ru.itone.illya4gurenko.publisher_change_food_card.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import ru.itone.illya4gurenko.publisher_change_food_card.exception.FileProcessingException;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -10,48 +11,37 @@ import java.nio.file.*;
 public class MainManageFilesService {
     private final FileUnitsCheckVisitorService fileUnitsCheckVisitorService;
     private final WatchFilesService watchFilesService;
+    private final ValidDataService validDataService;
 
     @Value("${spring.files.dir}")
     private String dirFilesForManage;
 
-    @Value("${spring.files.error}")
-    private String dirForFilesError;
 
-    @Value("${spring.files.success}")
-    private String dirForFilesSuccess;
-
-    public MainManageFilesService(FileUnitsCheckVisitorService fileUnitsCheckVisitorService, WatchFilesService watchFilesService) {
+    public MainManageFilesService(FileUnitsCheckVisitorService fileUnitsCheckVisitorService, WatchFilesService watchFilesService, ValidDataService validDataService) {
         this.fileUnitsCheckVisitorService = fileUnitsCheckVisitorService;
         this.watchFilesService = watchFilesService;
+        this.validDataService = validDataService;
     }
 
-    public void manageFiles(){
+    public void manageFiles() {
         Path dir = Paths.get(dirFilesForManage);
-        watchFilesService.findAllFilesAndRename(dir);
-
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
             for (Path pathFile : stream) {
-                try{
-                    if(fileUnitsCheckVisitorService.visit(pathFile)){
-                        Path newDir = Paths.get(dirForFilesSuccess);
-                        Files.createDirectories(newDir);
-                        String newName = pathFile.getFileName().toString().replace(".in-progress", ".success");
-                        Path newFile = newDir.resolve(newName);
-                        Files.copy(pathFile, newFile, StandardCopyOption.REPLACE_EXISTING);
-                    }else{
-                        Path newDir = Paths.get(dirForFilesError);
-                        Files.createDirectories(newDir);
-                        String newName = pathFile.getFileName().toString().replace(".in-progress", ".error");
-                        Path newFile = newDir.resolve(newName);
-                        Files.copy(pathFile, newFile, StandardCopyOption.REPLACE_EXISTING);
+                //вызвать инпрогресс -> проверить на валидность файл -> вызвать error/success
+                if (validDataService.isFileEnrollFilter(pathFile)) {
+                    Path inProgressPath = watchFilesService.moveToInProgress(pathFile);
+                    try {
+                        if (fileUnitsCheckVisitorService.visit(inProgressPath)) {
+                            watchFilesService.moveToSuccess(inProgressPath);
+                        } else {
+                            watchFilesService.moveToError(inProgressPath);                        }
+                    } catch (Exception  e) {
+                        throw new FileProcessingException("Error with processing file: " + pathFile, e);
                     }
-
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
                 }
             }
         } catch (IOException | DirectoryIteratorException x) {
-            throw new RuntimeException();
+            throw new FileProcessingException("Error reading dir: " + dirFilesForManage, x);
         }
     }
 }

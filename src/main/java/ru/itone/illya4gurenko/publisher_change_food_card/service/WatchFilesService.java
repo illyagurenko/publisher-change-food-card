@@ -3,48 +3,51 @@ package ru.itone.illya4gurenko.publisher_change_food_card.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import ru.itone.illya4gurenko.publisher_change_food_card.exception.FileProcessingException;
 
 import java.io.IOException;
-import java.nio.file.DirectoryIteratorException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 
 @Service
 public class WatchFilesService {
-    private final ValidDataService validDataService;
 
-    @Autowired
-    public WatchFilesService(ValidDataService validDataService) {
-        this.validDataService = validDataService;
+    @Value("${spring.files.data}")
+    private String baseDataDir;
+
+    public Path moveToInProgress(Path pathFile) {
+        return moveToState(pathFile, "in_progress", ".in-progress");
     }
 
-    public boolean isFileEmpty(Path path) {
+    public Path moveToSuccess(Path pathFile) {
+        return moveToState(pathFile, "success", ".success");
+    }
+
+    public Path moveToError(Path pathFile) {
+        return moveToState(pathFile, "error", ".error");
+    }
+
+    private Path moveToState(Path pathFile, String folderName, String suffix) {
         try {
-            return Files.exists(path) && Files.size(path) == 0;
-        } catch (Exception e) {
-            return true;
-        }
-    }
-    //если он всему подходит то переименовать в ин прогресс и в другом сервисе вызывая проверку строк
-    // раскидываем их в ошиьку и успех
-    public void findAllFilesAndRename(Path dir) {
-        int co = 0;
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, validDataService::isFileEnrollFilter)) {
-            for (Path pathFile : stream) {
-                try{
-                    String newName = pathFile.getFileName().toString() + ".in-progress";
-                    Path newPath = pathFile.resolveSibling(newName);
-                    Files.move(pathFile, newPath);
-                    co++;
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-            System.out.println(co);
-        } catch (IOException | DirectoryIteratorException x) {
-            throw new RuntimeException();
+            String date = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
+
+            Path targetDir = Paths.get(baseDataDir, date, folderName);
+            Files.createDirectories(targetDir);
+
+            String cleanName = pathFile.getFileName().toString()
+                    .replace(".in-progress", "")
+                    .replace(".success", "")
+                    .replace(".error", "");
+
+            String newFileName = cleanName + suffix;
+            Path targetFile = targetDir.resolve(newFileName);
+
+            return Files.move(pathFile, targetFile, StandardCopyOption.REPLACE_EXISTING);
+
+        } catch (IOException e) {
+            throw new FileProcessingException("Error move " + pathFile.getFileName() + " in dir " + folderName, e);
         }
     }
 }

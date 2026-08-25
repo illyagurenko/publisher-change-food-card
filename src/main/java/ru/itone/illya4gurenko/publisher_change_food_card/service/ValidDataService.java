@@ -10,8 +10,8 @@ import java.util.stream.Stream;
 
 @Service
 public class ValidDataService {
-    private static final Pattern FILE_TITLE_PATTERN =
-            Pattern.compile("^Z\\d{6}\\.[A-Za-z0-9]+_ENROLL\\d+\\.\\d{3}$");
+    private static final Pattern FILE_TITLE_ENROLL_PATTERN =
+            Pattern.compile("^Z\\d{6}\\.[A-Za-z0-9]+_ENROLL\\d+\\.\\d{3}(\\\\.in-progress)?$");
 
     private static final Pattern HEADER_PATTERN =
             Pattern.compile("^H \\d{8} \\d{6} (IMMEDIATE|INTIME   (?: \\d{8} \\d{6})?)$");
@@ -24,9 +24,9 @@ public class ValidDataService {
 
     public boolean isFileEnrollFilter(Path path) {
         String nameFile = path.getFileName().toString();
-        if(!FILE_TITLE_PATTERN.matcher(nameFile).matches())
+        if(!FILE_TITLE_ENROLL_PATTERN.matcher(nameFile).matches())
             System.out.println("nonononononoononononon");
-        return nameFile != null && FILE_TITLE_PATTERN.matcher(nameFile).matches();
+        return nameFile != null && FILE_TITLE_ENROLL_PATTERN.matcher(nameFile).matches();
     }
 
     public boolean isValidHeader(String unit) {

@@ -16,7 +16,7 @@ public class OracleDatasourceConfiguration {
     public DataSourceProperties oracleDataSourceProperties() {
         return new DataSourceProperties();
     }
-    @Bean
+    @Bean(name = "oracleDataSource")
     @Primary
     public DataSource oracleDataSource() {
         return oracleDataSourceProperties()
