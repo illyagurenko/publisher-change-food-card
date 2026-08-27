@@ -1,4 +1,4 @@
-package ru.itone.illya4gurenko.dao;
+package ru.itone.illya4gurenko.publisher_change_food_card.dao;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -23,7 +23,7 @@ public class PomDao {
 
     // POM.FILE
     // сохранение названия файла в бд и обновление статуса файла
-    public File save(String name, String path, String sender, String ulianDate){
+    public File saveFile(String name, String path, String sender, String ulianDate){
         File file = new File();
         file.setFilename(name);
         file.setFullpath(path);
@@ -44,7 +44,7 @@ public class PomDao {
 
     // POM.UNIT
     // сохранение строки в бд
-    public Unit save(File file, String pomType, FileStatus status, String line, String addValue){
+    public Unit saveUnit(File file, String pomType, FileStatus status, String line, String addValue){
         Unit unit = new Unit();
         unit.setFile(file);
         unit.setInsTime(LocalDateTime.now());
@@ -57,7 +57,7 @@ public class PomDao {
 
     // POM.UNIT_ERROR
     // сохранение ошибки строки в бд
-    public void save(File file, Unit unit, String rawLine, List<ValidationError> errors) {
+    public void saveUnitError(File file, Unit unit, String rawLine, List<ValidationError> errors) {
         if (errors == null || errors.isEmpty()) {
             return;
         }

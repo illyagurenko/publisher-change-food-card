@@ -8,7 +8,6 @@ import java.math.BigDecimal;
 @Getter
 @RequiredArgsConstructor
 public class Body {
-    private final int lineNumber;
     private final String rawLine;
     private final String fullName;
     private final String account;

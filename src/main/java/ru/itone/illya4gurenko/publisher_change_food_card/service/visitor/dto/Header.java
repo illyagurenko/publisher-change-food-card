@@ -8,7 +8,6 @@ import java.time.LocalDateTime;
 @Getter
 @RequiredArgsConstructor
 public class Header {
-    private final int lineNumber;
     private final String rawLine;
     private final ProcType procType;
     private final LocalDateTime focTimestamp; // если INTIME

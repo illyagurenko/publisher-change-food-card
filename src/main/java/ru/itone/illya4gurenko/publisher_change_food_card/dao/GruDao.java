@@ -1,4 +1,4 @@
-package ru.itone.illya4gurenko.dao;
+package ru.itone.illya4gurenko.publisher_change_food_card.dao;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;

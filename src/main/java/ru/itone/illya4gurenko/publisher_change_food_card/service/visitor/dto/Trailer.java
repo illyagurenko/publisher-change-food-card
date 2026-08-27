@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public class Trailer{
-    private final int lineNumber;
     private final String rawLine;
     private final int declaredCount;
 }
