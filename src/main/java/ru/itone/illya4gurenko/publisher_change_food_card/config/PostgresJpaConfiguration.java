@@ -19,7 +19,7 @@ import java.util.Objects;
 @Configuration
 @EnableTransactionManagement
 @EnableJpaRepositories(
-        basePackages = "ru.itone.illya4gurenko.postgres.repository",
+        basePackages = "ru.itone.illya4gurenko.publisher_change_food_card.postgres.repository",
         entityManagerFactoryRef = "postgresEntityManagerFactory",
         transactionManagerRef = "postgresTransactionManager"
 )
@@ -32,7 +32,7 @@ public class PostgresJpaConfiguration {
         properties.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         return builder
                 .dataSource(dataSource)
-                .packages("ru.itone.illya4gurenko.postgres.entity")
+                .packages("ru.itone.illya4gurenko.publisher_change_food_card.postgres.entity")
                 .persistenceUnit("postgres")
                 .properties(properties)
                 .build();

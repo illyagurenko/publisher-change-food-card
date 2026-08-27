@@ -31,8 +31,9 @@ public class Unit {
     @Column(name = "pom_type", length = 3)
     private String pomType;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 10)
-    private String status;
+    private FileStatus status;
 
     @Column(name = "unit_value", length = 2000)
     private String unitValue;

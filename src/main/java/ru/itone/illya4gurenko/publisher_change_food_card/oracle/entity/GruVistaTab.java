@@ -6,9 +6,12 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import ru.itone.illya4gurenko.publisher_change_food_card.service.visitor.dto.ProcType;
+import ru.itone.illya4gurenko.publisher_change_food_card.service.visitor.dto.Type;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "GRU_VISTA_TAB", schema = "GRU")
@@ -24,7 +27,7 @@ public class GruVistaTab {
             sequenceName = "GRU_VISTA_SEQ",
             allocationSize = 1
     )
-    @Column(name = "ID", length = 12)
+    @Column(name = "ID")
     private Long id;
 
     @Column(name = "SYSTEMACCOUNT", length = 32)
@@ -36,29 +39,30 @@ public class GruVistaTab {
     @Column(name = "XALFA", precision = 23, scale = 3)
     private BigDecimal xalfa;
 
-    @Column(name = "OPERATION", length = 3)
-    private String operation;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "OPERATION", length = 2)
+    private Type operation;
 
     @Column(name = "TIME_STAMP")
     private LocalDateTime timeStamp;
 
-    @Column(name = "POM_ID", length = 12)
-    private Integer pomId;
+    @Column(name = "POM_ID")
+    private Long pomId;
 
-    @Column(name = "UTERRARIO", length = 18)
-    private Integer uterrario;
+    @Column(name = "UTERRARIO")
+    private Long uterrario;
 
     @Column(name = "OLDTBAL", precision = 23, scale = 3)
     private BigDecimal oldTBal;
 
     @Column(name = "NEWTBAL", precision = 23, scale = 3)
-    private BigDecimal newTBall;
+    private BigDecimal newTBal;
 
     @Column(name = "ADD_INFO", length = 100)
     private String addInfo;
 
-    @Column(name = "FILE_ID", length = 12)
-    private Integer fileId;
+    @Column(name = "FILE_ID")
+    private Long fileId;
 
     @Column(name = "FOC_STATUS", length = 64)
     private String focStatus;
@@ -66,6 +70,7 @@ public class GruVistaTab {
     @Column(name = "FOC_TS")
     private LocalDateTime focTS;
 
-    @Column(name = "FOC_Type", length = 10)
-    private String focType;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "FOC_TYPE", length = 10)
+    private ProcType focType;
 }

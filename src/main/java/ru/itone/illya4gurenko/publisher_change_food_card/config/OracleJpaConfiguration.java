@@ -18,7 +18,7 @@ import java.util.Objects;
 @Configuration
 @EnableTransactionManagement
 @EnableJpaRepositories(
-        basePackages = "ru.itone.illya4gurenko.oracle.repository",
+        basePackages = "ru.itone.illya4gurenko.publisher_change_food_card.oracle.repository",
         entityManagerFactoryRef = "oracleEntityManagerFactory",
         transactionManagerRef = "oracleTransactionManager"
 )
@@ -33,7 +33,7 @@ public class OracleJpaConfiguration {
         properties.put("hibernate.dialect", "org.hibernate.dialect.OracleDialect");
         return builder
                 .dataSource(dataSource)
-                .packages("ru.itone.illya4gurenko.oracle.entity")
+                .packages("ru.itone.illya4gurenko.publisher_change_food_card.oracle.entity")
                 .persistenceUnit("oracle")
                 .properties(properties)
                 .build();

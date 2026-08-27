@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Entity
@@ -22,7 +23,7 @@ public class File {
     private Long id;
 
     @Column(name = "ins_time", nullable = false)
-    private LocalDateTime insTime;
+    private OffsetDateTime insTime;
 
     @Column(name = "filename", length = 40)
     private String filename;
@@ -37,17 +38,18 @@ public class File {
     private String fileComment;
 
     @Column(name = "upd_time")
-    private LocalDateTime updTime;
+    private OffsetDateTime updTime;
 
-    @Column(name = "file_status  ", length = 10)
-    private String fileStatus;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 10)
+    private FileStatus fileStatus;
 
     @Column(name = "uli_date", length = 3)
     private String uliDate;
 
     @OneToMany(mappedBy = "file", cascade = CascadeType.ALL)
-    List<Unit> units;
+    private List<Unit> units;
 
     @OneToMany(mappedBy = "file", cascade = CascadeType.ALL)
-    List<UnitError> unitErrors;
+    private List<UnitError> unitErrors;
 }

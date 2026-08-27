@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "unit_error")
+@Table(name = "unit_error", schema = "pom")
 @Getter
 @Setter
 @AllArgsConstructor
