@@ -1,8 +1,6 @@
 package ru.itone.illya4gurenko.publisher_change_food_card.service.visitor;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 import ru.itone.illya4gurenko.publisher_change_food_card.dao.GruDao;
 import ru.itone.illya4gurenko.publisher_change_food_card.dao.PomDao;
 import ru.itone.illya4gurenko.publisher_change_food_card.dao.ValidationError;
@@ -30,16 +28,22 @@ public class EnrollVisitor implements Visitor {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HHmmss");
     // паттерны шапки и подвала
+    private static final Pattern TITLE_FILE_PATTERN = Pattern.compile("^Z(\\d{3})(\\d{3})\\.[A-Za-z0-9_]+_ENROLL\\d+\\.(\\d{3})$");
     private static final Pattern HEADER_IMMEDIATE = Pattern.compile("^H\\s(\\d{8})\\s(\\d{6})\\s(IMMEDIATE)\\s*$");
     private static final Pattern HEADER_INTIME = Pattern.compile("^H\\s(\\d{8})\\s(\\d{6})\\s(INTIME)\\s(\\d{8})\\s(\\d{6})$");
     private static final Pattern TRAILER_PATTERN = Pattern.compile("^T\\s{9}(\\d{10})$");
     // DAO
     private final PomDao pomDao;
     private final GruDao gruDao;
-    // файл для сохранения и последняя строчка
-    private final File fileEntity;
+    // данные файла
+    @Getter
+    private File fileEntity;
     private final String lastRow;
+    private final String fullPathDir;
+    private final String filename;
     // флаги валидности
+    private boolean isSaveFile = false;
+    private boolean isValidFilename = false;
     private boolean isValidHeader = false;
     private boolean isValidTrailer = false;
     // первая и последняя строка
@@ -51,20 +55,12 @@ public class EnrollVisitor implements Visitor {
     @Getter
     private boolean hasFileError = false;
 
-    public EnrollVisitor(PomDao pomDao, GruDao gruDao, File fileEntity, String lastRow) {
+    public EnrollVisitor(PomDao pomDao, GruDao gruDao, String lastRow, String fullPathDir, String filename) {
         this.pomDao = pomDao;
         this.gruDao = gruDao;
-        this.fileEntity = fileEntity;
         this.lastRow = lastRow;
-
-        // чтоб определить перед парсом body
-        Trailer preCheckTrailer = parseTrailer(lastRow);
-        if (preCheckTrailer == null) {
-            this.isValidTrailer = false;
-            this.hasFileError = true;
-        } else {
-            this.isValidTrailer = true;
-        }
+        this.fullPathDir = fullPathDir;
+        this.filename = filename;
     }
 
     @Override
@@ -73,6 +69,9 @@ public class EnrollVisitor implements Visitor {
             throw new IllegalArgumentException("visitor wait String");
         }
         String str = (String) o;
+        if (!isSaveFile) {
+            saveFile();
+        }
         if (header == null) {
             processHeader(str);
             return;
@@ -85,6 +84,34 @@ public class EnrollVisitor implements Visitor {
 
     }
 
+    // save File in db
+    private void saveFile() {
+        String sender = null;
+        String julianDate = null;
+
+        Matcher titleMatcher = TITLE_FILE_PATTERN.matcher(filename);
+        if (titleMatcher.matches()) {
+            isValidFilename = true;
+            sender = titleMatcher.group(1) + " " + titleMatcher.group(2);
+            julianDate = titleMatcher.group(3);
+        } else {
+            isValidFilename = false;
+            hasFileError = true;
+        }
+
+        fileEntity = pomDao.saveFile(filename, fullPathDir, sender, julianDate);
+
+        // чтоб зря боди не парсить
+        Trailer preCheckTrailer = parseTrailer(lastRow);
+        if (preCheckTrailer == null) {
+            isValidTrailer = false;
+            hasFileError = true;
+        } else {
+            isValidTrailer = true;
+        }
+        isSaveFile = true;
+    }
+
     // Header
     private void processHeader(String line) {
         header = parseHeader(line);
@@ -92,8 +119,7 @@ public class EnrollVisitor implements Visitor {
         if (header != null) {
             isValidHeader = true;
             pomDao.saveUnit(fileEntity, POM_TYPE_HEADER, FileStatus.SUCCESS, line, null);
-        }
-        else{
+        } else {
             isValidHeader = false;
             hasFileError = true;
             String errorMsg = "invalid header";
@@ -121,11 +147,10 @@ public class EnrollVisitor implements Visitor {
         trailer = parseTrailer(line);
         boolean isCountEquals = trailer != null && trailer.getDeclaredCount() == countRows;
 
-        if(isCountEquals){
+        if (isCountEquals) {
             isValidTrailer = true;
             pomDao.saveUnit(fileEntity, POM_TYPE_TRAILER, FileStatus.SUCCESS, line, null);
-        }
-        else {
+        } else {
             isValidTrailer = false;
             hasFileError = true;
             String errorMsg = !isCountEquals
@@ -153,8 +178,8 @@ public class EnrollVisitor implements Visitor {
     private void processBody(String line) {
         countRows++;
 
-        if (!isValidHeader || !isValidTrailer) {
-            String errorMsg = "auto invalid";
+        if (!isValidFilename || !isValidHeader || !isValidTrailer) {
+            String errorMsg = !isValidFilename ? "file name invalid" : "auto invalid";
             Unit unit = pomDao.saveUnit(fileEntity, POM_TYPE_BODY, FileStatus.ERROR, line, errorMsg);
             pomDao.saveUnitError(fileEntity, unit, line, List.of(new ValidationError("B00", errorMsg)));
             return;
@@ -182,7 +207,7 @@ public class EnrollVisitor implements Visitor {
         }
     }
 
-    private Body parseBody(String line, List<ValidationError> errors){
+    private Body parseBody(String line, List<ValidationError> errors) {
         if (line == null || line.length() != 152) {
             errors.add(new ValidationError("B01", "length != 152 chars"));
             return null;

@@ -42,6 +42,10 @@ public class PomDao {
         fileRepository.save(file);
     }
 
+    public boolean existsByFilename(String filename) {
+        return fileRepository.existsByFilename(filename);
+    }
+
     // POM.UNIT
     // сохранение строки в бд
     public Unit saveUnit(File file, String pomType, FileStatus status, String line, String addValue){

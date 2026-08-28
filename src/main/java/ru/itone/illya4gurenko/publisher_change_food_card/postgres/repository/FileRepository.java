@@ -5,5 +5,6 @@ import org.springframework.stereotype.Repository;
 import ru.itone.illya4gurenko.publisher_change_food_card.postgres.entity.File;
 @Repository
 public interface FileRepository extends JpaRepository<File, Long> {
+    boolean existsByFilename(String filename);
 }
 
