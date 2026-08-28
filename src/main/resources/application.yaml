@@ -18,3 +18,4 @@ spring:
   files:
     dir: D:/gpb_tasks/generator_file/generated
     data: ./data
+    scan-interval: 5000
