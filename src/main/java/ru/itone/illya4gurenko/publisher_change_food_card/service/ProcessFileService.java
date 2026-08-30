@@ -25,7 +25,7 @@ public class ProcessFileService {
     private final GenerateDirService generateDirService;
 
     public void process(Path path){
-        String filename = path.getFileName().toString();
+        String filename = path.getFileName().toString().replace(".in_progress", "");
         if (pomDao.existsByFilename(filename)) {
             throw new FileProcessingException("file already exist");
         }
@@ -33,7 +33,12 @@ public class ProcessFileService {
         EnrollVisitor visitor = null;
 
         try{
-            inProgressPath = generateDirService.copyToInProgress(path);
+            //если он с контроллеров
+            if (path.getFileName().toString().endsWith(".in_progress")) {
+                inProgressPath = path;
+            } else {
+                inProgressPath = generateDirService.copyToInProgress(path);
+            }
             String fullPathDir = inProgressPath.getParent().toAbsolutePath().toString();
             String lastLine = readLastLine(inProgressPath);
             if (lastLine == null || lastLine.isBlank()) {

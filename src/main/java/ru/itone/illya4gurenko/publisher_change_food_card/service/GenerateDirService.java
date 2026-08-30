@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -49,5 +50,13 @@ public class GenerateDirService {
         Path errorPath = todayDir.resolve("error").resolve(fileName + ".error");
         Files.move(inProgressPath, errorPath, StandardCopyOption.REPLACE_EXISTING);
         return errorPath;
+    }
+
+    // принимает поток чанки и пишет в ин-прогресс
+    public Path readStreamInprogress(InputStream inputStream, String fileName) throws IOException {
+        Path todayDir = createDir();
+        Path targetPath = todayDir.resolve("in_progress").resolve(fileName + ".in_progress");
+        Files.copy(inputStream, targetPath, StandardCopyOption.REPLACE_EXISTING);
+        return targetPath;
     }
 }
