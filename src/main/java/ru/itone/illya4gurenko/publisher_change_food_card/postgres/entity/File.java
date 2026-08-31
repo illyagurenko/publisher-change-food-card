@@ -41,7 +41,7 @@ public class File {
     private OffsetDateTime updTime;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", length = 10)
+    @Column(name = "file_status", length = 10)
     private FileStatus fileStatus;
 
     @Column(name = "uli_date", length = 3)

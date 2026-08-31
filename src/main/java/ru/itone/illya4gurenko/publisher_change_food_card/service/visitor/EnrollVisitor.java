@@ -31,7 +31,7 @@ public class EnrollVisitor implements Visitor {
     private static final Pattern TITLE_FILE_PATTERN = Pattern.compile("^Z(\\d{3})(\\d{3})\\.[A-Za-z0-9_]+_ENROLL\\d+\\.(\\d{3})$");
     private static final Pattern HEADER_IMMEDIATE = Pattern.compile("^H\\s(\\d{8})\\s(\\d{6})\\s(IMMEDIATE)\\s*$");
     private static final Pattern HEADER_INTIME = Pattern.compile("^H\\s(\\d{8})\\s(\\d{6})\\s(INTIME)\\s(\\d{8})\\s(\\d{6})$");
-    private static final Pattern TRAILER_PATTERN = Pattern.compile("^T\\s{9}(\\d{10})$");
+    private static final Pattern TRAILER_PATTERN = Pattern.compile("^T\\s+(\\d+)\\s*$");
     // DAO
     private final PomDao pomDao;
     private final GruDao gruDao;
@@ -162,7 +162,8 @@ public class EnrollVisitor implements Visitor {
     }
 
     private Trailer parseTrailer(String line) {
-        Matcher matcher = TRAILER_PATTERN.matcher(line);
+        if (line == null) return null;
+        Matcher matcher = TRAILER_PATTERN.matcher(line.trim());
         if (matcher.matches()) {
             try {
                 int count = Integer.parseInt(matcher.group(1).trim());
