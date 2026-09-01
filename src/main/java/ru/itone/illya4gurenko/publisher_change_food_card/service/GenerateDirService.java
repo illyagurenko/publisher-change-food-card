@@ -1,5 +1,6 @@
 package ru.itone.illya4gurenko.publisher_change_food_card.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import ru.itone.illya4gurenko.publisher_change_food_card.config.ConstantsUtils;
@@ -13,6 +14,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
+@Slf4j
 @Service
 public class GenerateDirService {
 
@@ -27,6 +29,7 @@ public class GenerateDirService {
         Files.createDirectories(newDir.resolve(ConstantsUtils.DIR_IN_PROGRESS));
         Files.createDirectories(newDir.resolve(ConstantsUtils.DIR_SUCCESS));
         Files.createDirectories(newDir.resolve(ConstantsUtils.DIR_ERROR));
+        log.info("create 3 state directory");
         return newDir;
     }
 
@@ -36,6 +39,7 @@ public class GenerateDirService {
         Path targetPath = todayDir.resolve(ConstantsUtils.DIR_IN_PROGRESS).resolve(originalName + ConstantsUtils.POINT_IN_PROGRESS);
 
         Files.move(path, targetPath, StandardCopyOption.REPLACE_EXISTING);
+        log.info("file: {} move to in-progress", originalName);
         return targetPath;
     }
 
@@ -43,6 +47,7 @@ public class GenerateDirService {
         Path todayDir = createDir();
         Path successPath = todayDir.resolve(ConstantsUtils.DIR_SUCCESS).resolve(fileName + ConstantsUtils.POINT_SUCCESS);
         Files.move(inProgressPath, successPath, StandardCopyOption.REPLACE_EXISTING);
+        log.info("file: {} move to success", fileName);
         return successPath;
     }
 
@@ -50,6 +55,7 @@ public class GenerateDirService {
         Path todayDir = createDir();
         Path errorPath = todayDir.resolve(ConstantsUtils.DIR_ERROR).resolve(fileName + ConstantsUtils.POINT_ERROR);
         Files.move(inProgressPath, errorPath, StandardCopyOption.REPLACE_EXISTING);
+        log.info("file: {} move to error", fileName);
         return errorPath;
     }
 
@@ -58,6 +64,7 @@ public class GenerateDirService {
         Path todayDir = createDir();
         Path targetPath = todayDir.resolve(ConstantsUtils.DIR_IN_PROGRESS).resolve(fileName + ConstantsUtils.POINT_IN_PROGRESS);
         Files.copy(inputStream, targetPath, StandardCopyOption.REPLACE_EXISTING);
+        log.info("file: {} move to in-progress from controller", fileName);
         return targetPath;
     }
 }

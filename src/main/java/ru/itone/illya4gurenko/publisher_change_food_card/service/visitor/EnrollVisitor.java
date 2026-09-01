@@ -1,6 +1,7 @@
 package ru.itone.illya4gurenko.publisher_change_food_card.service.visitor;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import ru.itone.illya4gurenko.publisher_change_food_card.config.ConstantsUtils;
 import ru.itone.illya4gurenko.publisher_change_food_card.dao.GruDao;
 import ru.itone.illya4gurenko.publisher_change_food_card.dao.PomDao;
@@ -20,12 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
+@Slf4j
 public class EnrollVisitor implements Visitor {
-    // коды POM_TYPE
-    private static final String POM_TYPE_HEADER = "101";
-    private static final String POM_TYPE_BODY = "106";
-    private static final String POM_TYPE_TRAILER = "108";
     // форматы дат и времени
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HHmmss");
@@ -97,11 +94,13 @@ public class EnrollVisitor implements Visitor {
         Matcher titleMatcher = TITLE_FILE_PATTERN.matcher(filename);
         if (titleMatcher.matches()) {
             isValidFilename = true;
+            log.info("title: {} is valid", filename);
             sender = titleMatcher.group(1) + " " + titleMatcher.group(2);
             julianDate = titleMatcher.group(3);
         } else {
             isValidFilename = false;
             hasAnyError  = true;
+            log.warn("title: {} is invalid", filename);
         }
 
         fileEntity = pomDao.saveFile(filename, fullPathDir, sender, julianDate);
@@ -123,11 +122,14 @@ public class EnrollVisitor implements Visitor {
 
         if (header != null) {
             isValidHeader = true;
-            pomDao.saveUnit(fileEntity, POM_TYPE_HEADER, FileStatus.SUCCESS, line, null);
+            log.debug("header success parse type: {}, data: {}", header.getProcType(), header.getFocTimestamp());
+            pomDao.saveUnit(fileEntity, ConstantsUtils.POM_TYPE_HEADER, FileStatus.SUCCESS, line, null);
+
         } else {
             isValidHeader = false;
             hasAnyError  = true;
-            Unit unit = pomDao.saveUnit(fileEntity, POM_TYPE_HEADER, FileStatus.ERROR, line, ConstantsUtils.MSG_INVALID_HEADER);
+            log.warn("invalid header: {}", line);
+            Unit unit = pomDao.saveUnit(fileEntity, ConstantsUtils.POM_TYPE_HEADER, FileStatus.ERROR, line, ConstantsUtils.MSG_INVALID_HEADER);
             pomDao.saveUnitError(fileEntity, unit, line, List.of(new ValidationError(ConstantsUtils.ERR_CODE_HEADER, ConstantsUtils.MSG_INVALID_HEADER)));
         }
     }
@@ -153,14 +155,17 @@ public class EnrollVisitor implements Visitor {
 
         if (isCountEquals) {
             isValidTrailer = true;
-            pomDao.saveUnit(fileEntity, POM_TYPE_TRAILER, FileStatus.SUCCESS, line, null);
+            log.debug("trailer success parse count: {}", trailer.getDeclaredCount());
+
+            pomDao.saveUnit(fileEntity, ConstantsUtils.POM_TYPE_TRAILER, FileStatus.SUCCESS, line, null);
         } else {
             isValidTrailer = false;
             hasAnyError = true;
+            log.warn("invalid trailer: {}", line);
             String errorMsg = !isCountEquals
                     ? ConstantsUtils.MSG_INVALID_COUNT_ROWS
                     : ConstantsUtils.MSG_INVALID_TRAILER;
-            Unit unit = pomDao.saveUnit(fileEntity, POM_TYPE_TRAILER, FileStatus.ERROR, line, errorMsg);
+            Unit unit = pomDao.saveUnit(fileEntity, ConstantsUtils.POM_TYPE_TRAILER, FileStatus.ERROR, line, errorMsg);
             pomDao.saveUnitError(fileEntity, unit, line, List.of(new ValidationError(ConstantsUtils.ERR_CODE_TRAILER, errorMsg)));
         }
     }
@@ -185,7 +190,7 @@ public class EnrollVisitor implements Visitor {
 
         if (!isValidFilename || !isValidHeader || !isValidTrailer) {
             String errorMsg = !isValidFilename ? ConstantsUtils.MSG_INVALID_FILENAME: ConstantsUtils.MSG_AUTO_INVALID;
-            Unit unit = pomDao.saveUnit(fileEntity, POM_TYPE_BODY, FileStatus.ERROR, line, errorMsg);
+            Unit unit = pomDao.saveUnit(fileEntity, ConstantsUtils.POM_TYPE_BODY, FileStatus.ERROR, line, errorMsg);
             pomDao.saveUnitError(fileEntity, unit, line, List.of(new ValidationError(ConstantsUtils.ERR_CODE_AUTO_INVALID, errorMsg)));
             return;
         }
@@ -195,11 +200,13 @@ public class EnrollVisitor implements Visitor {
 
         if (!errors.isEmpty() || body == null) {
             hasAnyError = true;
+            log.warn("body: {}, has error: {}",line, errors);
             String firstErrorMsg = errors.isEmpty() ? ConstantsUtils.MSG_BODY_INVALID : errors.getFirst().message();
-            Unit unit = pomDao.saveUnit(fileEntity, POM_TYPE_BODY, FileStatus.ERROR, line, firstErrorMsg);
+            Unit unit = pomDao.saveUnit(fileEntity, ConstantsUtils.POM_TYPE_BODY, FileStatus.ERROR, line, firstErrorMsg);
             pomDao.saveUnitError(fileEntity, unit, line, errors);
         } else {
-            Unit unit = pomDao.saveUnit(fileEntity, POM_TYPE_BODY, FileStatus.SUCCESS, line, null);
+            log.debug("line: {} is valid", line);
+            Unit unit = pomDao.saveUnit(fileEntity, ConstantsUtils.POM_TYPE_BODY, FileStatus.SUCCESS, line, null);
             gruDao.save(
                     body.getAccount(),
                     body.getAmount(),

@@ -29,12 +29,14 @@ public class ProcessFileService {
     public void process(Path path){
         String filename = path.getFileName().toString().replace(ConstantsUtils.POINT_IN_PROGRESS, "");
         if (pomDao.existsByFilename(filename)) {
+            log.warn("file exist in db: {}", filename);
             throw new FileProcessingException("file already exist");
         }
         Path inProgressPath = null;
         EnrollVisitor visitor = null;
 
         try{
+            log.info("start process file: {}", filename);
             //если он с контроллеров
             if (path.getFileName().toString().endsWith(ConstantsUtils.POINT_IN_PROGRESS)) {
                 inProgressPath = path;
@@ -44,6 +46,7 @@ public class ProcessFileService {
             String fullPathDir = inProgressPath.getParent().toAbsolutePath().toString();
             String lastLine = readLastLine(inProgressPath);
             if (lastLine == null || lastLine.isBlank()) {
+                log.warn("error empty last line in: {}", filename);
                 throw new FileProcessingException("file or trailer empty");
             }
             visitor = new EnrollVisitor(pomDao, gruDao,lastLine, fullPathDir, filename);
@@ -52,6 +55,7 @@ public class ProcessFileService {
             }
             pomDao.updateFileStatus(visitor.getFileEntity(), FileStatus.SUCCESS, null);
             generateDirService.moveToSuccess(inProgressPath, filename);
+            log.info("file: {} move in success", filename);
         } catch (FileValidationException e) {
             log.warn("Validation failed for file {}: {}", filename, e.getMessage());
             if (visitor != null && visitor.getFileEntity() != null) {
@@ -60,7 +64,7 @@ public class ProcessFileService {
             moveToErrorQuietly(inProgressPath, filename);
 
         } catch (Exception e) {
-            log.error("Technical error processing file {}: {}", filename, e.getMessage(), e);
+            log.error("technical error processing file {}: {}", filename, e.getMessage(), e);
             if (visitor != null && visitor.getFileEntity() != null) {
                 pomDao.updateFileStatus(visitor.getFileEntity(), FileStatus.ERROR, "technical error: " + e.getMessage());
             }
@@ -72,8 +76,8 @@ public class ProcessFileService {
         if (inProgressPath != null && Files.exists(inProgressPath)) {
             try {
                 generateDirService.moveToError(inProgressPath, filename);
-            } catch (IOException ex) {
-                log.error("Failed to move file to error directory: {}", filename, ex);
+            } catch (IOException e) {
+                log.error("failed to move file to error dir: {}", filename, e);
             }
         }
     }

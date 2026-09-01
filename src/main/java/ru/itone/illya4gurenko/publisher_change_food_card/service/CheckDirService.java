@@ -1,6 +1,7 @@
 package ru.itone.illya4gurenko.publisher_change_food_card.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -14,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+@Slf4j
 @Service
 @EnableScheduling
 @RequiredArgsConstructor
@@ -38,6 +40,7 @@ public class CheckDirService {
                 if (pomDao.existsByFilename(fileName)) {
                     continue;
                 }
+                log.info("service get new file: {}", fileName);
                 processFileService.process(filePath);
             }
         } catch ( IOException e) {
