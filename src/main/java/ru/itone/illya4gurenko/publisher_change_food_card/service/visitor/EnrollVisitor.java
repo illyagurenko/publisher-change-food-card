@@ -1,9 +1,11 @@
 package ru.itone.illya4gurenko.publisher_change_food_card.service.visitor;
 
 import lombok.Getter;
+import ru.itone.illya4gurenko.publisher_change_food_card.config.ConstantsUtils;
 import ru.itone.illya4gurenko.publisher_change_food_card.dao.GruDao;
 import ru.itone.illya4gurenko.publisher_change_food_card.dao.PomDao;
 import ru.itone.illya4gurenko.publisher_change_food_card.dao.ValidationError;
+import ru.itone.illya4gurenko.publisher_change_food_card.exception.FileValidationException;
 import ru.itone.illya4gurenko.publisher_change_food_card.postgres.entity.File;
 import ru.itone.illya4gurenko.publisher_change_food_card.postgres.entity.FileStatus;
 import ru.itone.illya4gurenko.publisher_change_food_card.postgres.entity.Unit;
@@ -46,14 +48,14 @@ public class EnrollVisitor implements Visitor {
     private boolean isValidFilename = false;
     private boolean isValidHeader = false;
     private boolean isValidTrailer = false;
+    private boolean hasAnyError = false;
     // первая и последняя строка
     private Header header;
     private Trailer trailer;
     // количество строк
     private int countRows = 0;
 
-    @Getter
-    private boolean hasFileError = false;
+
 
     public EnrollVisitor(PomDao pomDao, GruDao gruDao, String lastRow, String fullPathDir, String filename) {
         this.pomDao = pomDao;
@@ -78,6 +80,9 @@ public class EnrollVisitor implements Visitor {
         }
         if (str.equals(lastRow)) {
             processTrailer(str);
+            if (hasAnyError || !isValidHeader || !isValidTrailer || !isValidFilename) {
+                throw new FileValidationException("File contains validation errors");
+            }
             return;
         }
         processBody(str);
@@ -96,7 +101,7 @@ public class EnrollVisitor implements Visitor {
             julianDate = titleMatcher.group(3);
         } else {
             isValidFilename = false;
-            hasFileError = true;
+            hasAnyError  = true;
         }
 
         fileEntity = pomDao.saveFile(filename, fullPathDir, sender, julianDate);
@@ -105,7 +110,7 @@ public class EnrollVisitor implements Visitor {
         Trailer preCheckTrailer = parseTrailer(lastRow);
         if (preCheckTrailer == null) {
             isValidTrailer = false;
-            hasFileError = true;
+            hasAnyError  = true;
         } else {
             isValidTrailer = true;
         }
@@ -121,10 +126,9 @@ public class EnrollVisitor implements Visitor {
             pomDao.saveUnit(fileEntity, POM_TYPE_HEADER, FileStatus.SUCCESS, line, null);
         } else {
             isValidHeader = false;
-            hasFileError = true;
-            String errorMsg = "invalid header";
-            Unit unit = pomDao.saveUnit(fileEntity, POM_TYPE_HEADER, FileStatus.ERROR, line, errorMsg);
-            pomDao.saveUnitError(fileEntity, unit, line, List.of(new ValidationError("H01", errorMsg)));
+            hasAnyError  = true;
+            Unit unit = pomDao.saveUnit(fileEntity, POM_TYPE_HEADER, FileStatus.ERROR, line, ConstantsUtils.MSG_INVALID_HEADER);
+            pomDao.saveUnitError(fileEntity, unit, line, List.of(new ValidationError(ConstantsUtils.ERR_CODE_HEADER, ConstantsUtils.MSG_INVALID_HEADER)));
         }
     }
 
@@ -152,12 +156,12 @@ public class EnrollVisitor implements Visitor {
             pomDao.saveUnit(fileEntity, POM_TYPE_TRAILER, FileStatus.SUCCESS, line, null);
         } else {
             isValidTrailer = false;
-            hasFileError = true;
+            hasAnyError = true;
             String errorMsg = !isCountEquals
-                    ? "count rows invalid"
-                    : "trailer invalid";
+                    ? ConstantsUtils.MSG_INVALID_COUNT_ROWS
+                    : ConstantsUtils.MSG_INVALID_TRAILER;
             Unit unit = pomDao.saveUnit(fileEntity, POM_TYPE_TRAILER, FileStatus.ERROR, line, errorMsg);
-            pomDao.saveUnitError(fileEntity, unit, line, List.of(new ValidationError("T01", errorMsg)));
+            pomDao.saveUnitError(fileEntity, unit, line, List.of(new ValidationError(ConstantsUtils.ERR_CODE_TRAILER, errorMsg)));
         }
     }
 
@@ -180,9 +184,9 @@ public class EnrollVisitor implements Visitor {
         countRows++;
 
         if (!isValidFilename || !isValidHeader || !isValidTrailer) {
-            String errorMsg = !isValidFilename ? "file name invalid" : "auto invalid";
+            String errorMsg = !isValidFilename ? ConstantsUtils.MSG_INVALID_FILENAME: ConstantsUtils.MSG_AUTO_INVALID;
             Unit unit = pomDao.saveUnit(fileEntity, POM_TYPE_BODY, FileStatus.ERROR, line, errorMsg);
-            pomDao.saveUnitError(fileEntity, unit, line, List.of(new ValidationError("B00", errorMsg)));
+            pomDao.saveUnitError(fileEntity, unit, line, List.of(new ValidationError(ConstantsUtils.ERR_CODE_AUTO_INVALID, errorMsg)));
             return;
         }
 
@@ -190,8 +194,8 @@ public class EnrollVisitor implements Visitor {
         Body body = parseBody(line, errors);
 
         if (!errors.isEmpty() || body == null) {
-            hasFileError = true;
-            String firstErrorMsg = errors.isEmpty() ? "body invalid" : errors.getFirst().message();
+            hasAnyError = true;
+            String firstErrorMsg = errors.isEmpty() ? ConstantsUtils.MSG_BODY_INVALID : errors.getFirst().message();
             Unit unit = pomDao.saveUnit(fileEntity, POM_TYPE_BODY, FileStatus.ERROR, line, firstErrorMsg);
             pomDao.saveUnitError(fileEntity, unit, line, errors);
         } else {
@@ -210,7 +214,7 @@ public class EnrollVisitor implements Visitor {
 
     private Body parseBody(String line, List<ValidationError> errors) {
         if (line == null || line.length() != 152) {
-            errors.add(new ValidationError("B01", "length != 152 chars"));
+            errors.add(new ValidationError(ConstantsUtils.ERR_CODE_BODY_LEN, "length != 152 chars"));
             return null;
         }
 
@@ -220,28 +224,28 @@ public class EnrollVisitor implements Visitor {
         String amountStr = line.substring(132, 152).trim();
 
         if (fullName.isEmpty()) {
-            errors.add(new ValidationError("B02", "full name mustn`t be empty"));
+            errors.add(new ValidationError(ConstantsUtils.ERR_CODE_EMPTY_NAME, "full name mustn`t be empty"));
         }
 
         if (account.isEmpty()) {
-            errors.add(new ValidationError("B03", "account mustn`t be empty"));
+            errors.add(new ValidationError(ConstantsUtils.ERR_CODE_EMPTY_ACCOUNT, "account mustn`t be empty"));
         }
 
         Type operationType = null;
         try {
             operationType = Type.valueOf(typeStr);
         } catch (IllegalArgumentException e) {
-            errors.add(new ValidationError("B04", "uncorrected type: '" + typeStr));
+            errors.add(new ValidationError(ConstantsUtils.ERR_CODE_INVALID_TYPE, "uncorrected type: '" + typeStr));
         }
 
         BigDecimal amount = null;
         try {
             amount = new BigDecimal(amountStr.replace(',', '.'));
             if (amount.compareTo(BigDecimal.ZERO) < 0) {
-                errors.add(new ValidationError("B05", "amount mustn`t <0: " + amountStr));
+                errors.add(new ValidationError(ConstantsUtils.ERR_CODE_NEGATIVE_AMOUNT, "amount mustn`t <0: " + amountStr));
             }
         } catch (Exception e) {
-            errors.add(new ValidationError("B06", "uncorrected amount: '" + amountStr));
+            errors.add(new ValidationError(ConstantsUtils.ERR_CODE_INVALID_AMOUNT, "uncorrected amount: '" + amountStr));
         }
 
         if (!errors.isEmpty()) {

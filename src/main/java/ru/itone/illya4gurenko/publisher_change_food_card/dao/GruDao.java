@@ -2,6 +2,7 @@ package ru.itone.illya4gurenko.publisher_change_food_card.dao;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import ru.itone.illya4gurenko.publisher_change_food_card.config.ConstantsUtils;
 import ru.itone.illya4gurenko.publisher_change_food_card.oracle.entity.GruVistaTab;
 import ru.itone.illya4gurenko.publisher_change_food_card.oracle.repository.GruVistaTabRepository;
 import ru.itone.illya4gurenko.publisher_change_food_card.service.visitor.dto.ProcType;
@@ -21,7 +22,7 @@ public class GruDao {
     public GruVistaTab save(String account, BigDecimal amount, Type operation, Long pomId, Long fileId, ProcType focType, LocalDateTime focTs){
         GruVistaTab entity = new GruVistaTab();
         entity.setSystemAccount(account);
-        entity.setCurrency("222");
+        entity.setCurrency(ConstantsUtils.GRU_CURRENCY);
         entity.setXalfa(amount);
         entity.setOperation(operation);
         entity.setTimeStamp(LocalDateTime.now());
@@ -31,7 +32,7 @@ public class GruDao {
         entity.setNewTBal(null);
         entity.setAddInfo(operationTranslate(operation));
         entity.setFileId(fileId);
-        entity.setFocStatus("WAIT");
+        entity.setFocStatus(ConstantsUtils.GRU_FOC_STATUS_WAIT);
         entity.setFocType(focType);
         entity.setFocTS(focTs);
         return gruVistaTabRepository.save(entity);
@@ -46,9 +47,9 @@ public class GruDao {
             return null;
         }
         return switch (type) {
-            case ZR -> "Обнуление счёта";
-            case CR -> "Списание счёта";
-            case DR -> "Зачисление насчёт";
+            case ZR -> ConstantsUtils.ADD_INFO_ZR;
+            case CR -> ConstantsUtils.ADD_INFO_CR;
+            case DR -> ConstantsUtils.ADD_INFO_DR;
         };
     }
 }

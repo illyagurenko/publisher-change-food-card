@@ -1,6 +1,7 @@
 package ru.itone.illya4gurenko.publisher_change_food_card.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,7 +23,7 @@ public class FileMultipartController {
     private final GenerateDirService generateDirService;
     private final PomDao pomDao;
 
-    @PostMapping("/upload")
+    @PostMapping(value = "/upload",  consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> uploadMultipart(@RequestParam("file") MultipartFile file) throws IOException {
         String filename = file.getOriginalFilename();
         if (pomDao.existsByFilename(filename)) {

@@ -2,6 +2,7 @@ package ru.itone.illya4gurenko.publisher_change_food_card.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import ru.itone.illya4gurenko.publisher_change_food_card.config.ConstantsUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,31 +24,31 @@ public class GenerateDirService {
     public Path createDir() throws IOException {
         String today = LocalDate.now().format(DATE_FORMAT);
         Path newDir = Paths.get(dir, today);
-        Files.createDirectories(newDir.resolve("in_progress"));
-        Files.createDirectories(newDir.resolve("success"));
-        Files.createDirectories(newDir.resolve("error"));
+        Files.createDirectories(newDir.resolve(ConstantsUtils.DIR_IN_PROGRESS));
+        Files.createDirectories(newDir.resolve(ConstantsUtils.DIR_SUCCESS));
+        Files.createDirectories(newDir.resolve(ConstantsUtils.DIR_ERROR));
         return newDir;
     }
 
-    public Path copyToInProgress(Path path) throws IOException {
+    public Path moveToInProgress(Path path) throws IOException {
         Path todayDir = createDir();
         String originalName = path.getFileName().toString();
-        Path targetPath = todayDir.resolve("in_progress").resolve(originalName + ".in_progress");
+        Path targetPath = todayDir.resolve(ConstantsUtils.DIR_IN_PROGRESS).resolve(originalName + ConstantsUtils.POINT_IN_PROGRESS);
 
-        Files.copy(path, targetPath, StandardCopyOption.REPLACE_EXISTING);
+        Files.move(path, targetPath, StandardCopyOption.REPLACE_EXISTING);
         return targetPath;
     }
 
     public Path moveToSuccess(Path inProgressPath, String fileName) throws IOException {
         Path todayDir = createDir();
-        Path successPath = todayDir.resolve("success").resolve(fileName + ".success");
+        Path successPath = todayDir.resolve(ConstantsUtils.DIR_SUCCESS).resolve(fileName + ConstantsUtils.POINT_SUCCESS);
         Files.move(inProgressPath, successPath, StandardCopyOption.REPLACE_EXISTING);
         return successPath;
     }
 
     public Path moveToError(Path inProgressPath, String fileName) throws IOException {
         Path todayDir = createDir();
-        Path errorPath = todayDir.resolve("error").resolve(fileName + ".error");
+        Path errorPath = todayDir.resolve(ConstantsUtils.DIR_ERROR).resolve(fileName + ConstantsUtils.POINT_ERROR);
         Files.move(inProgressPath, errorPath, StandardCopyOption.REPLACE_EXISTING);
         return errorPath;
     }
@@ -55,7 +56,7 @@ public class GenerateDirService {
     // принимает поток чанки и пишет в ин-прогресс
     public Path readStreamInprogress(InputStream inputStream, String fileName) throws IOException {
         Path todayDir = createDir();
-        Path targetPath = todayDir.resolve("in_progress").resolve(fileName + ".in_progress");
+        Path targetPath = todayDir.resolve(ConstantsUtils.DIR_IN_PROGRESS).resolve(fileName + ConstantsUtils.POINT_IN_PROGRESS);
         Files.copy(inputStream, targetPath, StandardCopyOption.REPLACE_EXISTING);
         return targetPath;
     }
