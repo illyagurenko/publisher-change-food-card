@@ -6,7 +6,7 @@ grpc:
     port: 9090
 
 logging:
-  config: ${LOGGING_CONFIG:./config/logback.xml}
+  config: ./config/file-logback.xml
 
 spring:
   application:

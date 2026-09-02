@@ -73,6 +73,10 @@ public class EnrollVisitor implements Visitor {
         }
         if (header == null) {
             processHeader(str);
+            if (str.equals(lastRow)) {
+                hasAnyError = true;
+                throw new FileValidationException("invalid structure file");
+            }
             return;
         }
         if (str.equals(lastRow)) {

@@ -1,7 +1,8 @@
 package ru.itone.illya4gurenko.publisher_change_food_card.config;
 
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.jpa.EntityManagerFactoryBuilder;
+
+import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;

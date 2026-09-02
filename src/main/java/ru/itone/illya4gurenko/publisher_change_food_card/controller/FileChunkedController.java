@@ -40,6 +40,10 @@ public class FileChunkedController {
             log.warn("empty name");
             filename = "received_stream_file_" + System.currentTimeMillis();
         }
+        if (headerFilename == null || headerFilename.isBlank()) {
+            log.warn("empty headers");
+            return ResponseEntity.badRequest().body("Header 'X-File-Name' is required");
+        }
 
         Path inProgressPath = generateDirService.readStreamInprogress(request.getInputStream(), filename);
         processFileService.process(inProgressPath);
