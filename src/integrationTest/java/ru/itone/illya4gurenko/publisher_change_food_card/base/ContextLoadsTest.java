@@ -1,4 +1,4 @@
-package ru.itone.illya4gurenko.publisher_change_food_card;
+package ru.itone.illya4gurenko.publisher_change_food_card.base;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -41,9 +41,15 @@ public class CheckDirService {
                     continue;
                 }
                 log.info("service get new file: {}", fileName);
-                processFileService.process(filePath);
+
+                try {
+                    processFileService.process(filePath);
+                } catch (Exception e) {
+
+                    log.warn("File {} processing completed with error: {}", fileName, e.getMessage());
+                }
             }
-        } catch ( IOException e) {
+        } catch (IOException e) {
             throw new FileProcessingException("error check dir", e);
         }
     }

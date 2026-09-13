@@ -8,6 +8,7 @@ import ru.itone.illya4gurenko.publisher_change_food_card.dao.GruDao;
 import ru.itone.illya4gurenko.publisher_change_food_card.dao.PomDao;
 import ru.itone.illya4gurenko.publisher_change_food_card.exception.FileProcessingException;
 import ru.itone.illya4gurenko.publisher_change_food_card.exception.FileValidationException;
+import ru.itone.illya4gurenko.publisher_change_food_card.oracle.repository.GruVistaTabRepository;
 import ru.itone.illya4gurenko.publisher_change_food_card.postgres.entity.FileStatus;
 import ru.itone.illya4gurenko.publisher_change_food_card.service.visitor.EnrollVisitor;
 
@@ -24,9 +25,10 @@ public class ProcessFileService {
 
     private final PomDao pomDao;
     private final GruDao gruDao;
+    private final GruVistaTabRepository gruVistaTabRepository;
     private final GenerateDirService generateDirService;
 
-    public void process(Path path){
+    public void process(Path path) throws IOException {
         String filename = path.getFileName().toString().replace(ConstantsUtils.POINT_IN_PROGRESS, "");
         if (pomDao.existsByFilename(filename)) {
             log.warn("file exist in db: {}", filename);
@@ -59,16 +61,22 @@ public class ProcessFileService {
         } catch (FileValidationException e) {
             log.warn("Validation failed for file {}: {}", filename, e.getMessage());
             if (visitor != null && visitor.getFileEntity() != null) {
+                Long fileId = visitor.getFileEntity().getId();
                 pomDao.updateFileStatus(visitor.getFileEntity(), FileStatus.ERROR, e.getMessage());
+                gruVistaTabRepository.deleteByFileId(fileId);
             }
             moveToErrorQuietly(inProgressPath, filename);
+            throw e;
 
         } catch (Exception e) {
             log.error("technical error processing file {}: {}", filename, e.getMessage(), e);
             if (visitor != null && visitor.getFileEntity() != null) {
+                Long fileId = visitor.getFileEntity().getId();
                 pomDao.updateFileStatus(visitor.getFileEntity(), FileStatus.ERROR, "technical error: " + e.getMessage());
+                gruVistaTabRepository.deleteByFileId(fileId); // <--- Добавить и сюда
             }
             moveToErrorQuietly(inProgressPath, filename);
+            throw e;
         }
     }
 

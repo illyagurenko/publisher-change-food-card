@@ -31,7 +31,7 @@ public class DataCleanupService {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
-    @Scheduled(cron = "${spring.files.cleanup-cron:0 0 1 * * ?}")
+    @Scheduled(cron = "${spring.files.cleanup-cron}")
     public void cleanupOldDirectories() {
         Path baseDir = Paths.get(dataBasePath);
 
