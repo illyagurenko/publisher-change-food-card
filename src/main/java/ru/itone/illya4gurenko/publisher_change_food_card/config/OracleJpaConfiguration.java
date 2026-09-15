@@ -24,6 +24,10 @@ import java.util.Objects;
         transactionManagerRef = "oracleTransactionManager"
 )
 public class OracleJpaConfiguration {
+    /**
+     * Создает фабрику EntityManager для работы с Oracle.
+     * Настраивает сканирование JPA-сущностей в пакете oracle.entity и подключает диалект OracleDialect.
+     */
     @Bean
     @Primary
     public LocalContainerEntityManagerFactoryBean oracleEntityManagerFactory(
@@ -40,6 +44,7 @@ public class OracleJpaConfiguration {
                 .build();
     }
 
+    // Создает менеджер транзакций JPA для работы с сущностями БД Oracle
     @Bean
     @Primary
     public PlatformTransactionManager oracleTransactionManager(

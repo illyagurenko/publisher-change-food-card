@@ -25,6 +25,10 @@ import java.util.Objects;
         transactionManagerRef = "postgresTransactionManager"
 )
 public class PostgresJpaConfiguration {
+    /**
+     * Создает фабрику EntityManager для работы со схемой аудита в PostgreSQL.
+     * Настраивает сканирование сущностей в пакете postgres.entity и подключает PostgreSQLDialect.
+     */
     @Bean
     public LocalContainerEntityManagerFactoryBean postgresEntityManagerFactory(
             @Qualifier("postgresDataSource") DataSource dataSource,
@@ -38,7 +42,7 @@ public class PostgresJpaConfiguration {
                 .properties(properties)
                 .build();
     }
-
+    // Создает менеджер транзакций JPA в БД PostgreSQL
     @Bean
     public PlatformTransactionManager postgresTransactionManager(
             @Qualifier("postgresEntityManagerFactory") LocalContainerEntityManagerFactoryBean postgresEntityManagerFactory) {

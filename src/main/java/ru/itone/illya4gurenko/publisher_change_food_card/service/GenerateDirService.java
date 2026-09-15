@@ -23,6 +23,13 @@ public class GenerateDirService {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
+    /**
+     * Формирует суточную структуру каталогов в папке назначения (./data/yyyyMMdd)
+     * и гарантирует создание поддиректорий: in_progress, success, error.
+     *
+     * @return путь (Path) к корневой суточной директории.
+     * @throws IOException при ошибках создания папок в файловой системе.
+     */
     public Path createDir() throws IOException {
         String today = LocalDate.now().format(DATE_FORMAT);
         Path newDir = Paths.get(dir, today);

@@ -31,6 +31,11 @@ public class DataCleanupService {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
+    /**
+     * Ежедневная фоновая задача удаления устаревших рабочих каталогов с файлами.
+     * Сканирует директорию хранения, парсит имена папок формата yyyyMMdd и удаляет
+     * те, чья дата старше заданного периода хранения retentionDays.
+     */
     @Scheduled(cron = "${spring.files.cleanup-cron}")
     public void cleanupOldDirectories() {
         Path baseDir = Paths.get(dataBasePath);

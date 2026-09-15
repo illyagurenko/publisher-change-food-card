@@ -10,12 +10,15 @@ import javax.sql.DataSource;
 
 @Configuration
 public class OracleDatasourceConfiguration {
+    // Создает и привязывает свойства подключения к БД Oracle
     @Bean
     @Primary
     @ConfigurationProperties("spring.datasource.oracle")
     public DataSourceProperties oracleDataSourceProperties() {
         return new DataSourceProperties();
     }
+
+    // Создает и настраивает Primary пул соединений DataSource для Oracle
     @Bean(name = "oracleDataSource")
     @Primary
     public DataSource oracleDataSource() {

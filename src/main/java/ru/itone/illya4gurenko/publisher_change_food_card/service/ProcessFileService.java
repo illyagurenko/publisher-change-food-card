@@ -28,6 +28,18 @@ public class ProcessFileService {
     private final GruVistaTabRepository gruVistaTabRepository;
     private final GenerateDirService generateDirService;
 
+    /**
+     * Главный координирующий метод жизненного цикла обработки файла:
+     * 1 Проверяет отсутствие дубликата в БД POM.
+     * 2 Переносит файл в in_progress, если он поступил из каталога.
+     * 3 Предварительно вычитывает последнюю строку через RandomAccessFile.
+     * 4 Запускает построчную обработку реестра через паттерн EnrollVisitor.
+     * 5 Обновляет финальные статусы в БД и перемещает файл в success или error.
+     *
+     * @param path путь к обрабатываемому файлу.
+     * @throws FileProcessingException при фатальных технических сбоях или повторной обработке.
+     * @throws FileValidationException при обнаружении ошибок в структуре файла.
+     */
     public void process(Path path) throws IOException {
         String filename = path.getFileName().toString().replace(ConstantsUtils.POINT_IN_PROGRESS, "");
         if (pomDao.existsByFilename(filename)) {
@@ -79,7 +91,13 @@ public class ProcessFileService {
             throw e;
         }
     }
-
+    /**
+     * Безопасно перемещает файл в каталог error, подавляя исключения,
+     * чтобы не маскировать первоначальную ошибку обработки.
+     *
+     * @param inProgressPath путь к файлу в рабочей папке.
+     * @param filename       имя файла.
+     */
     private void moveToErrorQuietly(Path inProgressPath, String filename) {
         if (inProgressPath != null && Files.exists(inProgressPath)) {
             try {

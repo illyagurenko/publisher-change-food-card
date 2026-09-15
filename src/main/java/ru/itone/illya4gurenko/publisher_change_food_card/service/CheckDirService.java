@@ -26,6 +26,11 @@ public class CheckDirService {
     @Value("${spring.files.dir}")
     private String dir;
 
+    /**
+     * шедулер сканирования входной директории на наличие новых файлов.
+     * Фильтрует поддиректории и уже обработанные файлы по проверке в БД.
+     * Найденные новые файлы передаются в ProcessFileService.
+     */
     @Scheduled(fixedDelayString = "${spring.files.scan-interval:5000}")
     public void scan() {
         Path dirPath = Paths.get(dir);

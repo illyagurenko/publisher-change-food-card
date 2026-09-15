@@ -53,7 +53,15 @@ public class EnrollVisitor implements Visitor {
     private int countRows = 0;
 
 
-
+    /**
+     * Конструктор инициализации состояния парсера файла.
+     *
+     * @param pomDao      DAO для фиксации аудита в PostgreSQL.
+     * @param gruDao      DAO для сохранения проводок в Oracle.
+     * @param lastRow     текст последней строки файла.
+     * @param fullPathDir путь к каталогу нахождения файла.
+     * @param filename    имя обрабатываемого файла.
+     */
     public EnrollVisitor(PomDao pomDao, GruDao gruDao, String lastRow, String fullPathDir, String filename) {
         this.pomDao = pomDao;
         this.gruDao = gruDao;
@@ -62,6 +70,17 @@ public class EnrollVisitor implements Visitor {
         this.filename = filename;
     }
 
+    /**
+     * Построчно маршрутизирует входящую строку реестра:
+     * 1 При первом вызове инициализирует и валидирует файл в БД.
+     * 2 Первую строку отправляет в обработчик заголовка.
+     * 3 Последнюю строку отправляет в обработчик трейлера.
+     * 4 Промежуточные строки передает в парсер тела.
+     *
+     * @param o строка файла.
+     * @throws IllegalArgumentException если на вход передана не строка.
+     * @throws FileValidationException при обнаружении нарушений формата файла.
+     */
     @Override
     public void visit(Object o) {
         if (!(o instanceof String)) {
@@ -119,7 +138,7 @@ public class EnrollVisitor implements Visitor {
         }
         isSaveFile = true;
     }
-
+    // Парсеры и обработчики всех типов строк
     // Header
     private void processHeader(String line) {
         header = parseHeader(line);

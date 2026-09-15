@@ -25,6 +25,15 @@ public class FileMultipartController {
     private final GenerateDirService generateDirService;
     private final PomDao pomDao;
 
+    /**
+     * Принимает файл через форму multipart/form-data.
+     * Валидирует заполненность файла, проверяет уникальность имени по БД POM
+     * и направляет входной поток на сохранение и процессинг.
+     *
+     * @param file объект загружаемого файла.
+     * @return HTTP 200 при успешной обработке или HTTP 400, если файл пуст или уже существует.
+     * @throws IOException при ошибках извлечения потока байтов из запроса.
+     */
     @PostMapping(value = "/upload",  consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> uploadMultipart(@RequestParam("file") MultipartFile file) throws IOException {
         String filename = file.getOriginalFilename();

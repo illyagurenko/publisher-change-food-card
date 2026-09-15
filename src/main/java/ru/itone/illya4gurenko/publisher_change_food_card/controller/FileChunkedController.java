@@ -24,7 +24,17 @@ public class FileChunkedController {
     private final ProcessFileService processFileService;
     private final GenerateDirService generateDirService;
     private final PomDao pomDao;
-
+    /**
+     * Принимает файл через прямой потоковый HTTP POST-запрос
+     * Проверяет наличие обязательного заголовка с именем файла и отсутствие дубликатов в БД.
+     * Потоково сохраняет файл во временную директорию in_progress и передает его на обработку.
+     *
+     * @param headerFilename имя файла из заголовка X-File-Name.
+     * @param altFilename    альтернативное имя файла из заголовка filename.
+     * @param request        объект HTTP-запроса, содержащий входной поток байтов.
+     * @return HTTP 200 с отчетом об успехе или HTTP 400 при дубликатах/некорректных заголовках.
+     * @throws IOException при ошибках ввода-вывода при чтении потока.
+     */
     @PostMapping(value = "/stream")
     public ResponseEntity<String> uploadChunkedStream(
             @RequestHeader(value = "X-File-Name", required = false) String headerFilename,

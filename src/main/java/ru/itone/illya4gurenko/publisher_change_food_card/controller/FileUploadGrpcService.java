@@ -24,6 +24,14 @@ public class FileUploadGrpcService extends FileUploadServiceGrpc.FileUploadServi
     private final ProcessFileService processFileService;
     private final GenerateDirService generateDirService;
 
+    /**
+     * Реализует RPC-метод приёма файла по gRPC.
+     * Принимает поток чанков FileChunk, собирает их на диск
+     * и по завершении передачи запускает обработку файлов.
+     *
+     * @param responseObserver наблюдатель ответа для отправки итогового статуса UploadStatus.
+     * @return входной поток StreamObserver для приёма чанков от клиента.
+     */
     @Override
     public StreamObserver<FileChunk> uploadFile(StreamObserver<UploadStatus> responseObserver) {
         return new StreamObserver<FileChunk>() {

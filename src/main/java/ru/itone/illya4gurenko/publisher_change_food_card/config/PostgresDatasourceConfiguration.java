@@ -10,12 +10,14 @@ import javax.sql.DataSource;
 
 @Configuration
 public class PostgresDatasourceConfiguration {
+    // Создает и привязывает свойства подключения к БД PostgreSQL
     @Bean
     @ConfigurationProperties("spring.datasource.postgres")
     public DataSourceProperties postgresDataSourceProperties() {
         return new DataSourceProperties();
     }
 
+    // Создает пул соединений DataSource для базы данных PostgreSQL
     @Bean
     public DataSource postgresDataSource() {
         return postgresDataSourceProperties()
