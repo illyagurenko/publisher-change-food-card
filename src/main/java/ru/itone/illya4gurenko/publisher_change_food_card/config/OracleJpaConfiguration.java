@@ -1,7 +1,6 @@
 package ru.itone.illya4gurenko.publisher_change_food_card.config;
 
 import org.springframework.beans.factory.annotation.Qualifier;
-
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,6 +15,7 @@ import javax.sql.DataSource;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+
 @Configuration
 @EnableTransactionManagement
 @EnableJpaRepositories(
@@ -24,10 +24,7 @@ import java.util.Objects;
         transactionManagerRef = "oracleTransactionManager"
 )
 public class OracleJpaConfiguration {
-    /**
-     * Создает фабрику EntityManager для работы с Oracle.
-     * Настраивает сканирование JPA-сущностей в пакете oracle.entity и подключает диалект OracleDialect.
-     */
+
     @Bean
     @Primary
     public LocalContainerEntityManagerFactoryBean oracleEntityManagerFactory(
@@ -36,6 +33,8 @@ public class OracleJpaConfiguration {
 
         Map<String, Object> properties = new HashMap<>();
         properties.put("hibernate.dialect", "org.hibernate.dialect.OracleDialect");
+        properties.put("hibernate.archive.scanner", "org.hibernate.boot.archive.scan.internal.DisabledScanner");
+
         return builder
                 .dataSource(dataSource)
                 .packages("ru.itone.illya4gurenko.publisher_change_food_card.oracle.entity")
@@ -44,7 +43,6 @@ public class OracleJpaConfiguration {
                 .build();
     }
 
-    // Создает менеджер транзакций JPA для работы с сущностями БД Oracle
     @Bean
     @Primary
     public PlatformTransactionManager oracleTransactionManager(

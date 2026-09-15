@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: food_card_postgres
+    environment:
+      POSTGRES_DB: postgres_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: root
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init-scripts/postgres:/docker-entrypoint-initdb.d
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d postgres_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  oracle:
+    image: gvenzl/oracle-xe:11-slim
+    container_name: food_card_oracle
+    environment:
+      ORACLE_PASSWORD: root
+      APP_USER: gru
+      APP_USER_PASSWORD: root
+    ports:
+      - "1521:1521"
+    volumes:
+      - ./init-scripts/oracle:/container-entrypoint-initdb.d
+      - oracledata:/u01/app/oracle
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'SELECT 1 FROM DUAL;' | sqlplus -S gru/root@//localhost:1521/XE || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: food_card_app
+    ports:
+      - "8081:8081"
+      - "9090:9090"
+    environment:
+      SPRING_DATASOURCE_POSTGRES_URL: jdbc:postgresql://postgres:5432/postgres_db
+      SPRING_DATASOURCE_POSTGRES_USERNAME: user
+      SPRING_DATASOURCE_POSTGRES_PASSWORD: root
+
+      SPRING_DATASOURCE_ORACLE_URL: jdbc:oracle:thin:@oracle:1521:XE?oracle.jdbc.timezoneAsRegion=false
+      SPRING_DATASOURCE_ORACLE_USERNAME: gru
+      SPRING_DATASOURCE_ORACLE_PASSWORD: root
+
+      SPRING_FILES_DIR: /app/input_files
+      SPRING_FILES_DATA: /app/data
+      SPRING_FILES_SCAN_INTERVAL: "5000"
+
+      TZ: Europe/Moscow
+      SPRING_JPA_PROPERTIES_ORACLE_JDBC_TIMEZONEASREGION: "false"
+    volumes:
+      - ./data:/app/data
+      - ./input_files:/app/input_files
+      - ./config:/app/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+      oracle:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  oracledata:

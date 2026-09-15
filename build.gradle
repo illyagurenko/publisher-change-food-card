@@ -1,6 +1,6 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.3.2'
+	id 'org.springframework.boot' version '3.3.5'
 	id 'io.spring.dependency-management' version '1.1.6'
 	id 'jacoco'
 	id 'com.google.protobuf' version '0.9.4'
@@ -36,7 +36,8 @@ dependencies {
 
 	// Драйверы баз данных
 	runtimeOnly 'org.postgresql:postgresql'
-	runtimeOnly 'com.oracle.database.jdbc:ojdbc11:23.3.0.23.09'
+	implementation 'com.oracle.database.jdbc:ojdbc11'
+	implementation 'org.jboss:jandex:3.2.3'
 
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'
@@ -73,6 +74,12 @@ protobuf {
 		all()*.plugins {
 			grpc {}
 		}
+	}
+}
+
+configurations.all {
+	resolutionStrategy {
+		force 'org.jboss:jandex:3.2.3'
 	}
 }
 
@@ -132,3 +139,4 @@ jacocoTestReport {
 		html.outputLocation = layout.buildDirectory.dir('reports/jacoco')
 	}
 }
+

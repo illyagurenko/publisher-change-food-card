@@ -74,8 +74,11 @@ public class ProcessFileService {
             log.warn("Validation failed for file {}: {}", filename, e.getMessage());
             if (visitor != null && visitor.getFileEntity() != null) {
                 Long fileId = visitor.getFileEntity().getId();
-                pomDao.updateFileStatus(visitor.getFileEntity(), FileStatus.ERROR, e.getMessage());
-                gruVistaTabRepository.deleteByFileId(fileId);
+                String errorMsg = "technical error: " + e.getMessage();
+                if (errorMsg.length() > 100) {
+                    errorMsg = errorMsg.substring(0, 100);
+                }
+                pomDao.updateFileStatus(visitor.getFileEntity(), FileStatus.ERROR, errorMsg);                gruVistaTabRepository.deleteByFileId(fileId);
             }
             moveToErrorQuietly(inProgressPath, filename);
             throw e;
@@ -84,8 +87,12 @@ public class ProcessFileService {
             log.error("technical error processing file {}: {}", filename, e.getMessage(), e);
             if (visitor != null && visitor.getFileEntity() != null) {
                 Long fileId = visitor.getFileEntity().getId();
-                pomDao.updateFileStatus(visitor.getFileEntity(), FileStatus.ERROR, "technical error: " + e.getMessage());
-                gruVistaTabRepository.deleteByFileId(fileId); // <--- Добавить и сюда
+                String errorMsg = "technical error: " + e.getMessage();
+                if (errorMsg.length() > 100) {
+                    errorMsg = errorMsg.substring(0, 100);
+                }
+                pomDao.updateFileStatus(visitor.getFileEntity(), FileStatus.ERROR, errorMsg);
+                gruVistaTabRepository.deleteByFileId(fileId);
             }
             moveToErrorQuietly(inProgressPath, filename);
             throw e;

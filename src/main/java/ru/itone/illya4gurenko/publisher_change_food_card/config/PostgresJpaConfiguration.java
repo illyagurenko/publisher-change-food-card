@@ -1,11 +1,9 @@
 package ru.itone.illya4gurenko.publisher_change_food_card.config;
 
 import org.springframework.beans.factory.annotation.Qualifier;
-
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
@@ -25,16 +23,16 @@ import java.util.Objects;
         transactionManagerRef = "postgresTransactionManager"
 )
 public class PostgresJpaConfiguration {
-    /**
-     * Создает фабрику EntityManager для работы со схемой аудита в PostgreSQL.
-     * Настраивает сканирование сущностей в пакете postgres.entity и подключает PostgreSQLDialect.
-     */
+
     @Bean
     public LocalContainerEntityManagerFactoryBean postgresEntityManagerFactory(
             @Qualifier("postgresDataSource") DataSource dataSource,
             EntityManagerFactoryBuilder builder) {
+
         Map<String, Object> properties = new HashMap<>();
         properties.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
+        properties.put("hibernate.archive.scanner", "org.hibernate.boot.archive.scan.internal.DisabledScanner");
+
         return builder
                 .dataSource(dataSource)
                 .packages("ru.itone.illya4gurenko.publisher_change_food_card.postgres.entity")
@@ -42,7 +40,7 @@ public class PostgresJpaConfiguration {
                 .properties(properties)
                 .build();
     }
-    // Создает менеджер транзакций JPA в БД PostgreSQL
+
     @Bean
     public PlatformTransactionManager postgresTransactionManager(
             @Qualifier("postgresEntityManagerFactory") LocalContainerEntityManagerFactoryBean postgresEntityManagerFactory) {
