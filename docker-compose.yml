@@ -61,14 +61,21 @@ services:
       SPRING_JPA_PROPERTIES_ORACLE_JDBC_TIMEZONEASREGION: "false"
     volumes:
       - ./data:/app/data
-      - ./input_files:/app/input_files
+      - D:/gpb_tasks/shared_exchange:/app/input_files
       - ./config:/app/config
     depends_on:
       postgres:
         condition: service_healthy
       oracle:
         condition: service_healthy
+    networks:
+      - default
+      - food_bridge
 
 volumes:
   pgdata:
   oracledata:
+
+networks:
+  food_bridge:
+    external: true
