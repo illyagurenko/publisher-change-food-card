@@ -1,0 +1,34 @@
+--liquibase formatted sql
+
+--changeset illya:gru-003-reject-sequence
+CREATE SEQUENCE GRU.GRU_REJECT_SEQ
+    START WITH 1
+    INCREMENT BY 1
+    NOCACHE;
+
+--rollback DROP SEQUENCE GRU.GRU_REJECT_SEQ;
+
+
+--changeset illya:gru-004-reject-table
+CREATE TABLE GRU.GRU_REJECT_TAB
+(
+    ID              NUMBER(12),
+    SYSTEMACCOUNT   VARCHAR2(32 BYTE),
+    VISTA_TAB_ID    NUMBER(12),
+    UTERRARIO       NUMBER(9),
+    OLDTBAL         NUMBER(20,3),
+    NEWTBAL         NUMBER(20,3),
+    FRONT_TIMESTAMP DATE,
+    FRONT_STATUS    VARCHAR2(3 BYTE),
+    REJECT_DESC     VARCHAR2(256 BYTE),
+    CHECK_STATUS    VARCHAR2(3 BYTE),
+    CHECK_DESC      VARCHAR2(256 BYTE),
+    CHECK_USER      VARCHAR2(20 BYTE),
+    CHECK_TIMESTAMP DATE,
+    SVFE_LOAD_ID    VARCHAR2(256 BYTE),
+
+    CONSTRAINT pk_gru_reject_tab
+        PRIMARY KEY (ID)
+);
+
+--rollback DROP TABLE GRU.GRU_REJECT_TAB;

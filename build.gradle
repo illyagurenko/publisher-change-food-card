@@ -38,6 +38,7 @@ dependencies {
 	runtimeOnly 'org.postgresql:postgresql'
 	implementation 'com.oracle.database.jdbc:ojdbc11'
 	implementation 'org.jboss:jandex:3.2.3'
+	implementation 'org.liquibase:liquibase-core'
 
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'

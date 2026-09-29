@@ -1,0 +1,32 @@
+--liquibase formatted sql
+
+--changeset illya:gru-001-sequence
+CREATE SEQUENCE GRU.GRU_VISTA_SEQ
+    START WITH 1
+    INCREMENT BY 1
+    NOCACHE;
+
+--rollback DROP SEQUENCE GRU.GRU_VISTA_SEQ;
+
+
+--changeset illya:gru-002-vista-table
+CREATE TABLE GRU.GRU_VISTA_TAB
+(
+    ID            NUMBER PRIMARY KEY,
+    SYSTEMACCOUNT VARCHAR2(32 BYTE),
+    CURRENCY      VARCHAR2(3 BYTE),
+    XALFA         NUMBER(23,3),
+    OPERATION     VARCHAR2(2 BYTE),
+    TIME_STAMP    TIMESTAMP,
+    POM_ID        NUMBER,
+    UTERRARIO     NUMBER,
+    OLDTBAL       NUMBER(23,3),
+    NEWTBAL       NUMBER(23,3),
+    ADD_INFO      VARCHAR2(100 BYTE),
+    FILE_ID       NUMBER,
+    FOC_STATUS    VARCHAR2(64 BYTE),
+    FOC_TS        TIMESTAMP,
+    FOC_TYPE      VARCHAR2(10 BYTE)
+);
+
+--rollback DROP TABLE GRU.GRU_VISTA_TAB;

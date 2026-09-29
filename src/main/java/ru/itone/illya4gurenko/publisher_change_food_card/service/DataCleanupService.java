@@ -3,6 +3,7 @@ package ru.itone.illya4gurenko.publisher_change_food_card.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ public class DataCleanupService {
      * Сканирует директорию хранения, парсит имена папок формата yyyyMMdd и удаляет
      * те, чья дата старше заданного периода хранения retentionDays.
      */
+    @EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
     @Scheduled(cron = "${spring.files.cleanup-cron}")
     public void cleanupOldDirectories() {
         Path baseDir = Paths.get(dataBasePath);

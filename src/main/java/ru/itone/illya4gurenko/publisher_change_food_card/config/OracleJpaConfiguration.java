@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.JpaTransactionManager;
@@ -27,17 +28,33 @@ public class OracleJpaConfiguration {
 
     @Bean
     @Primary
+    @DependsOn("oracleLiquibase")
     public LocalContainerEntityManagerFactoryBean oracleEntityManagerFactory(
             @Qualifier("oracleDataSource") DataSource dataSource,
             EntityManagerFactoryBuilder builder) {
 
         Map<String, Object> properties = new HashMap<>();
-        properties.put("hibernate.dialect", "org.hibernate.dialect.OracleDialect");
-        properties.put("hibernate.archive.scanner", "org.hibernate.boot.archive.scan.internal.DisabledScanner");
+
+        properties.put(
+                "hibernate.dialect",
+                "org.hibernate.dialect.OracleDialect"
+        );
+
+        properties.put(
+                "hibernate.archive.scanner",
+                "org.hibernate.boot.archive.scan.internal.DisabledScanner"
+        );
+
+        properties.put(
+                "hibernate.hbm2ddl.auto",
+                "validate"
+        );
 
         return builder
                 .dataSource(dataSource)
-                .packages("ru.itone.illya4gurenko.publisher_change_food_card.oracle.entity")
+                .packages(
+                        "ru.itone.illya4gurenko.publisher_change_food_card.oracle.entity"
+                )
                 .persistenceUnit("oracle")
                 .properties(properties)
                 .build();
