@@ -1,261 +1,490 @@
+# Food-card Service
 
+Сервис приёма, валидации и сохранения банковских файлов.
 
-# Сервис приёма и обработки реестров карт питания
+## Назначение
 
-Сервис на Java 21 и Spring Boot, предназначенный для потокового приёма, валидации, аудита и обработки банковских реестров изменения баланса карт питания (`ENROLL`).
+`food-card` принимает файлы от `generator-service`, валидирует структуру и данные, сохраняет аудит обработки в PostgreSQL и бизнес-записи в Oracle.
 
-Система поддерживает мультиканальный приём данных (gRPC Client Streaming, HTTP Chunked, HTTP Multipart, локальный каталог), раздельное хранение аудита и бизнес-транзакций в двух независимых СУБД (PostgreSQL и Oracle), а также управление жизненным циклом файлов на диске.
-
----
-
-## Оглавление
-
-1. [Функциональные возможности](#функциональные-возможности)
-2. [Используемые библиотеки и технологии](#используемые-библиотеки-и-технологии)
-3. [Архитектура системы и базы данных](#архитектура-системы-и-базы-данных)
-4. [Спецификация формата реестров](#спецификация-формата-реестров)
-5. [Системные требования](#системные-требования)
-6. [Сборка и запуск](#сборка-и-запуск)
-7. [Конфигурация приложения](#конфигурация-приложения)
-8. [Точки приёма данных (Транспортный слой)](#точки-приёма-данных-транспортный-слой)
-9. [Жизненный цикл и хранение файлов](#жизненный-цикл-и-хранение-файлов)
-10. [Классификация ошибок и валидация](#классификация-ошибок-и-валидация)
-
----
-
-## Функциональные возможности
-
-* **Мультиканальный приём реестров:** 4 независимых канала доставки данных (gRPC Stream, HTTP Chunked Stream, HTTP Multipart, File Watcher).
-* **Потоковая обработка:** Обработка файлов произвольного объема построчно через `Files.lines()` без вычитывания всего файла в оперативную память.
-* **Архитектурный паттерн Visitor:** Инкапсуляция пошагового синтаксического и семантического анализа строк в классе `EnrollVisitor`.
-* **Двойной контур хранения данных (Dual DataSource):**
-    * **PostgreSQL (схема `pom`):** Полный аудит процесса разбора, сохранение исходных строк файла и детализация ошибок валидации.
-    * **Oracle (схема `gru`):** Учёт финансовых проводок (`GRU_VISTA_TAB`), генерация 18-значных уникальных номеров транзакций и перевод типов операций.
-* **Строгая валидация структуры реестров:**
-    * Проверка маски наименования файла и извлечение метаданных (код отправителя, юлианская дата).
-    * Контроль формата заголовков (`IMMEDIATE` и отложенный `INTIME`).
-    * Контроль фиксированной ширины строк тела (строго 152 символа), типов счетов и неотрицательности сумм.
-    * Сверка контрольного счетчика в подвале (`Trailer`) с фактическим количеством обработанных строк.
-* **Изолированный жизненный цикл файлов:** Перемещение файлов по каталогам состояний (`in_progress` -> `success` / `error`).
-* **Автоматическая очистка устаревших данных:** Фоновый шедулер удаления каталогов старше заданного количества дней (`retention-days`).
-
----
-
-## Используемые библиотеки и технологии
-
-| Библиотека / Технология | Версия | Назначение |
-| :--- | :--- | :--- |
-| **Java 21** | 21 | Основной язык разработки (Records, Pattern Matching, Streams) |
-| **Spring Boot** | 3.x | Базовый каркас приложения (IoC, Web, Scheduling) |
-| **Spring Data JPA / Hibernate** | 3.x / 6.x | Работа с базами данных PostgreSQL и Oracle через два независимых EntityManagerFactory |
-| **gRPC Spring Boot Starter** | 3.x | Реализация серверного слоя gRPC Client Streaming |
-| **Protocol Buffers** | 3.x | Бинарный протокол потоковой передачи данных |
-| **PostgreSQL JDBC Driver** | 42.x | Драйвер подключения к БД аудита PostgreSQL |
-| **Oracle JDBC Driver (OIDC)** | 23.x / 19.x | Драйвер подключения к транзакционной БД Oracle |
-| **Testcontainers** | 1.19+ | Интеграционное тестирование с запуском реальных контейнеров Postgres и Oracle XE |
-| **Lombok** | 1.18+ | Генерация шаблонного кода (геттеры, сеттеры, конструкторы) |
-| **SLF4J + Logback** | — | Структурированное логирование событий |
-
----
-
-## Архитектура системы и базы данных
-
-### Структура пакетов
-
-* `ru.itone.illya4gurenko.publisher_change_food_card.config` — Конфигурация источников данных Oracle/Postgres и константные справочники.
-* `ru.itone.illya4gurenko.publisher_change_food_card.controller` — REST-контроллеры и gRPC-сервис приёма файлов.
-* `ru.itone.illya4gurenko.publisher_change_food_card.dao` — Доступ к данным и бизнес-маппинг (`GruDao`, `PomDao`).
-* `ru.itone.illya4gurenko.publisher_change_food_card.postgres` — Сущности и репозитории схемы аудита `pom`.
-* `ru.itone.illya4gurenko.publisher_change_food_card.oracle` — Сущности и репозитории транзакционной схемы `gru`.
-* `ru.itone.illya4gurenko.publisher_change_food_card.service` — Сервисы жизненного цикла директорий, планировщика и процессинга.
-* `ru.itone.illya4gurenko.publisher_change_food_card.service.visitor` — Логика валидации реестров на основе паттерна Visitor.
-
----
-
-### Схема баз данных
-
-```
-               [ Входящий файл реестра ]
-                          │
-         ┌────────────────┴────────────────┐
-         ▼                                 ▼
-   [ PostgreSQL ]                      [ Oracle ]
-    Схема: "pom"                      Схема: "gru"
-┌────────────────────┐            ┌────────────────────┐
-│      file          │            │   GRU_VISTA_TAB    │
-│ (информация о файле│            │(бизнес-проводки,   │
-│  и статус разбора) │            │ счета, суммы,      │
-└─────────┬──────────┘            │ статус WAIT)       │
-          │ 1:N                   └────────────────────┘
-┌─────────▼──────────┐
-│      unit          │
-│(строки: H, Body, T)│
-└─────────┬──────────┘
-          │ 1:N
-┌─────────▼──────────┐
-│    unit_error      │
-│(детализация ошибок)│
-└────────────────────┘
-```
-
-1. **`pom.file`**: Заголовочная запись о принятом файле (имя, путь, отправитель, дата, статус `IN_PROCESS`, `SUCCESS`, `ERROR`).
-2. **`pom.unit`**: Построчный слепок содержимого файла с типами строк (`101` — Header, `106` — Body, `108` — Trailer).
-3. **`pom.unit_error`**: Справочник зарегистрированных ошибок валидации строк (код ошибки, проблемная строка, описание).
-4. **`gru.GRU_VISTA_TAB`**: Финансовая таблица зачислений/списаний. Заполняется только для валидных строк реестра.
-
----
-
-## Спецификация формата реестров
-
-### 1. Маска наименования файла
-```text
-Z{3}{3}.{name}_ENROLL{n}.{3}
-```
-* **Пример:** `Z001002.VALID_ENROLL2.298`
-* `001 002` — код банка и филиала (отправитель).
-* `298` — юлианский день года.
-
-### 2. Структура строк реестра
-
-| Элемент | Маска / Позиция | Длина | Описание | Пример |
-| :--- | :--- | :--- | :--- | :--- |
-| **Header (IMMEDIATE)** | `^H\s(\d{8})\s(\d{6})\sIMMEDIATE$` | Переменная | Немедленная обработка | `H 20231025 120000 IMMEDIATE` |
-| **Header (INTIME)** | `^H\s(\d{8})\s(\d{6})\sINTIME\s(\d{8})\s(\d{6})$`| Переменная | Обработка к указанному времени | `H 20231025 120000 INTIME 20231026 183000` |
-| **Body: ФИО** | `[0..100]` | 100 символов | ФИО клиента (с дополнением пробелами) | `Иванов Иван Иванович...` |
-| **Body: Счет** | `[100..130]` | 30 символов | Номер счёта карты питания | `40817810099910004321...` |
-| **Body: Операция** | `[130..132]` | 2 символа | Тип проводки: `ZR` (обнуление), `CR` (списание), `DR` (зачисление) | `ZR` |
-| **Body: Сумма** | `[132..152]` | 20 символов | Сумма транзакции (неотрицательная) | `             1500.50` |
-| **Trailer** | `^T\s+(\d+)\s*$` | Переменная | Подвал: контрольное количество строк | `T                   1` |
-
->  **Важно:** Длина любой строки тела должна составлять **строго 152 символа**.
-
----
-
-## Системные требования
-
-* **JDK:** Java Development Kit 21.
-* **СУБД:** PostgreSQL 14+ и Oracle Database 11g+ (или Docker для запуска Testcontainers).
-* **Сборщик проекта:** Gradle 8.x или Maven (в зависимости от сборки).
-
----
-
-## Сборка и запуск
-
-### 1. Компиляция Protobuf и сборка
-
-```bash
-./gradlew clean build
-```
-
-### 2. Запуск приложения
-
-```bash
-java -jar build/libs/publisher-change-food-card-1.0.0.jar
-```
-
-### 3. Запуск интеграционных тестов с Testcontainers
-
-Интеграционные тесты автоматически запускают контейнеры PostgreSQL и Oracle XE в Docker:
-
-```bash
-./gradlew test
-```
-
----
-
-## Конфигурация приложения
-
-Основные параметры настраиваются в файле `src/main/resources/application.yml`:
-
-| Параметр | Значение по умолчанию | Описание |
-| :--- | :--- | :--- |
-| `server.port` | `8081` | Порт HTTP REST-контроллеров |
-| `grpc.server.port` | `9090` | Порт для приёма входящих gRPC соединений |
-| `spring.datasource.postgres.url` | `jdbc:postgresql://localhost:5432/postgres_db` | URL базы данных PostgreSQL (аудит) |
-| `spring.datasource.oracle.url` | `jdbc:oracle:thin:@localhost:1521:XE` | URL базы данных Oracle (проводки) |
-| `spring.files.dir` | `./input_files` | Каталог для локального сканирования новых файлов |
-| `spring.files.data` | `./data` | Базовый каталог хранения состояний файлов |
-| `spring.files.scan-interval` | `5000` | Интервал сканирования папки `dir` (в миллисекундах) |
-| `spring.files.retention-days` | `3` | Время хранения каталогов с обработанными файлами (в днях) |
-| `spring.files.cleanup-cron` | `0 0 1 * * ?` | Cron-расписание запуска очистки старых файлов |
-
----
-
-## Точки приёма данных (Транспортный слой)
-
-### 1. HTTP Multipart (`POST /api/files/upload`)
-Стандартная загрузка через `multipart/form-data`.
-* **Content-Type:** `multipart/form-data`
-* **Параметр формы:** `file`
-
-```bash
-curl -X POST http://localhost:8081/api/files/upload \
-  -F "file=@Z001002.VALID_ENROLL2.298"
-```
-
-### 2. HTTP Chunked Streaming (`POST /api/files/stream`)
-Потоковая передача данных напрямую из `InputStream` без буферизации файла на клиенте.
-* **Content-Type:** `application/octet-stream`
-* **Заголовки:** `X-File-Name: <имя_файла>`
-
-```bash
-curl -X POST http://localhost:8081/api/files/stream \
-  -H "X-File-Name: Z001002.VALID_ENROLL2.298" \
-  --data-binary "@Z001002.VALID_ENROLL2.298"
-```
-
-### 3. gRPC Client Streaming (`FileUploadService/uploadFile`)
-Передача файла последовательными бинарными чанками по протоколу HTTP/2.
-* **Порт:** `9090`
-* **Контракт Protobuf:**
-  ```protobuf
-  service FileUploadService {
-    rpc uploadFile (stream FileChunk) returns (UploadStatus);
-  }
-
-  message FileChunk {
-    string file_name = 1;
-    bytes content = 2;
-  }
-  ```
-
-### 4. Сканер каталога (`CheckDirService`)
-Автоматический забор файлов из папки, заданной параметром `spring.files.dir`. Если файл с таким именем ещё не обрабатывался в базе данных, он считывается и перемещается в рабочий контур.
-
----
-
-## Жизненный цикл и хранение файлов
-
-Все поступившие файлы распределяются по структурированным ежедневным подпапкам внутри каталога `./data`:
+Основной поток:
 
 ```text
-./data/
-└── 20260330/
-    ├── in_progress/   # Файлы, находящиеся в процессе вычитки и парсинга (.in_progress)
-    ├── success/       # Успешно проверенные и зафиксированные файлы (.success)
-    └── error/         # Реестры с ошибками валидации или сбоями (.error)
+Generator
+   ↓
+multipart / raw HTTP / gRPC / shared directory
+   ↓
+Food-card
+   ├── PostgreSQL: pom.*
+   └── Oracle: GRU.GRU_VISTA_TAB
 ```
 
-1. **Приём:** Поток сохраняется в `in_progress/имя_файла.in_progress`.
-2. **Успех:** Если заголовок, все строки тела и подвал сошлись, файл перемещается в `success/имя_файла.success`, а статус в `pom.file` обновляется на `SUCCESS`.
-3. **Откат:** При обнаружении ошибки валидации файл переносится в `error/имя_файла.error`, в `pom.file` выставляется статус `ERROR`, проводки в Oracle откатываются, а в `pom.unit_error` заносятся коды выявленных проблем.
-4. **Очистка:** Ночью по расписанию (`cleanup-cron`) директории старше `retention-days` полностью удаляются с диска.
+После успешной записи в Oracle данные забирает `app-adapter`.
 
----
+## Стек
 
-## Классификация ошибок и валидация
+- Java 21
+- Spring Boot 3.3.5
+- Spring Web
+- gRPC
+- PostgreSQL
+- Oracle XE
+- Liquibase
+- Docker / Docker Compose
 
-При нарушении структуры реестра в таблицу `pom.unit_error` сохраняются стандартизированные коды:
+## Порты
 
-| Код | Описание | Причина возникновения |
-| :--- | :--- | :--- |
-| **`H01`** | `invalid header` | Заголовок не соответствует формату `IMMEDIATE` или `INTIME` |
-| **`T01`** | `trailer invalid` / `count rows invalid` | Неверный формат подвала или расхождение заявленного количества строк с фактическим |
-| **`B00`** | `auto invalid` | Строка тела помечена ошибочной из-за глобальной невалидности файла (битое имя/заголовок) |
-| **`B01`** | `length != 152 chars` | Длина строки тела не равна строго 152 символам |
-| **`B02`** | `full name mustn't be empty` | Пустое поле ФИО клиента (первые 100 символов) |
-| **`B03`** | `account mustn't be empty` | Пустой номер банковского счёта (символы 100-130) |
-| **`B04`** | `uncorrected type` | Неизвестный код операции (разрешены только `DR`, `CR`, `ZR`) |
-| **`B05`** | `amount mustn't < 0` | Отрицательное значение суммы операции |
-| **`B06`** | `uncorrected amount` | Ошибка числового парсинга поля суммы |
+| Порт | Назначение |
+|---|---|
+| `8081` | HTTP REST |
+| `9090` | gRPC |
 
+## Входные каналы
+
+### Multipart HTTP
+
+```http
+POST /api/files/upload
+Content-Type: multipart/form-data
+```
+
+Generator отправляет файл в multipart-part:
+
+```text
+file
+```
+
+### Raw HTTP
+
+```http
+POST /api/files/stream
+```
+
+### gRPC
+
+По умолчанию:
+
+```text
+9090
+```
+
+### Shared directory
+
+Food-card периодически сканирует входную директорию.
+
+Docker path:
+
+```text
+/app/input_files
+```
+
+Интервал задаётся:
+
+```text
+SPRING_FILES_SCAN_INTERVAL
+```
+
+Текущее значение:
+
+```text
+5000 ms
+```
+
+## Обработка файла
+
+Файл проходит:
+
+```text
+input
+  ↓
+data/YYYYMMDD/in_progress
+  ↓
+validation + persistence
+  ├── success
+  └── error
+```
+
+Основные директории:
+
+```text
+data/YYYYMMDD/in_progress
+data/YYYYMMDD/success
+data/YYYYMMDD/error
+```
+
+Body-строка должна иметь длину:
+
+```text
+152 символа
+```
+
+## Хранилища
+
+### PostgreSQL
+
+Используется для технического аудита обработки файлов.
+
+Схема:
+
+```text
+pom
+```
+
+Основные таблицы:
+
+```text
+pom.file
+pom.unit
+pom.unit_error
+```
+
+### Oracle
+
+Используется для бизнес-данных GRU.
+
+Основная таблица:
+
+```text
+GRU.GRU_VISTA_TAB
+```
+
+Ключевые поля состояния:
+
+```text
+FOC_STATUS
+FOC_STATUS_TS
+FOC_TYPE
+FOC_TS
+```
+
+`FOC_TS` используется как плановое время обработки для `INTIME`.
+
+`FOC_STATUS_TS` используется как время изменения технического статуса.
+
+Основные статусы:
+
+```text
+WAIT
+IN_PROCESS
+SUCCESS
+ERROR
+```
+
+После успешного приёма файла записи создаются со статусом:
+
+```text
+WAIT
+```
+
+## Liquibase
+
+Food-card владеет миграциями:
+
+- PostgreSQL `pom.*`;
+- Oracle `GRU.*`.
+
+Структура:
+
+```text
+src/main/resources/db/changelog/
+├── postgres/
+│   ├── db.changelog-master.yaml
+│   ├── 001-pom-schema.sql
+│   ├── 002-pom-tables.sql
+│   └── 003-pom-constraints-indexes.sql
+│
+└── oracle/
+    ├── db.changelog-master.yaml
+    ├── 001-gru-vista.sql
+    ├── 002-gru-reject.sql
+    ├── 003-gru-processing-state.sql
+    └── 004-gru-indexes-grants.sql
+```
+
+Так как используются два DataSource, Liquibase запускается отдельными `SpringLiquibase` bean для PostgreSQL и Oracle.
+
+Автоматический стандартный Liquibase Spring Boot отключён:
+
+```yaml
+spring:
+  liquibase:
+    enabled: false
+```
+
+Это не отключает вручную созданные `SpringLiquibase` bean.
+
+## Oracle user для adapter
+
+Объекты `GRU` принадлежат food-card, но adapter работает под пользователем:
+
+```text
+ACC_APP_ADAPTER
+```
+
+На чистом Oracle volume этого пользователя необходимо создать до применения GRU grants:
+
+```sql
+CREATE USER ACC_APP_ADAPTER IDENTIFIED BY root;
+
+ALTER USER ACC_APP_ADAPTER DEFAULT TABLESPACE USERS;
+ALTER USER ACC_APP_ADAPTER QUOTA UNLIMITED ON USERS;
+
+GRANT CREATE SESSION TO ACC_APP_ADAPTER;
+GRANT CREATE TABLE TO ACC_APP_ADAPTER;
+GRANT CREATE SEQUENCE TO ACC_APP_ADAPTER;
+```
+
+После этого Liquibase GRU выдаёт необходимые права пользователю adapter.
+
+> При `docker compose down -v` Oracle volume удаляется, поэтому созданный пользователь также исчезнет.
+
+## Docker Compose
+
+Актуальная схема:
+
+```yaml
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: food_card_postgres
+
+    environment:
+      POSTGRES_DB: postgres_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: root
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d postgres_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  oracle:
+    image: gvenzl/oracle-xe:11-slim
+    container_name: food_card_oracle
+
+    environment:
+      ORACLE_PASSWORD: root
+      APP_USER: gru
+      APP_USER_PASSWORD: root
+
+    ports:
+      - "1521:1521"
+
+    volumes:
+      - oracledata:/u01/app/oracle
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "echo 'SELECT 1 FROM DUAL;' | sqlplus -S gru/root@//localhost:1521/XE || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+    networks:
+      - default
+      - food_bridge
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: food-card-app
+
+    ports:
+      - "8081:8081"
+      - "9090:9090"
+
+    environment:
+      SPRING_DATASOURCE_POSTGRES_URL: jdbc:postgresql://postgres:5432/postgres_db
+      SPRING_DATASOURCE_POSTGRES_USERNAME: user
+      SPRING_DATASOURCE_POSTGRES_PASSWORD: root
+
+      SPRING_DATASOURCE_ORACLE_URL: jdbc:oracle:thin:@//oracle:1521/XE
+      SPRING_DATASOURCE_ORACLE_USERNAME: gru
+      SPRING_DATASOURCE_ORACLE_PASSWORD: root
+
+      SPRING_FILES_DIR: /app/input_files
+      SPRING_FILES_DATA: /app/data
+      SPRING_FILES_SCAN_INTERVAL: "5000"
+
+      SPRING_JPA_PROPERTIES_ORACLE_JDBC_TIMEZONEASREGION: "false"
+      TZ: Europe/Moscow
+
+    volumes:
+      - ./data:/app/data
+      - D:/gpb_tasks/shared_exchange:/app/input_files
+      - ./config:/app/config
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      oracle:
+        condition: service_healthy
+
+    networks:
+      - default
+      - food_bridge
+
+volumes:
+  pgdata:
+  oracledata:
+
+networks:
+  food_bridge:
+    external: true
+```
+
+Сеть создать один раз:
+
+```bash
+docker network create food_bridge
+```
+
+Если сеть уже существует, команда не нужна.
+
+## Запуск
+
+```bash
+docker compose up -d --build
+```
+
+Логи:
+
+```bash
+docker logs -f food-card-app
+```
+
+Состояние контейнеров:
+
+```bash
+docker compose ps
+```
+
+## Подключение к Oracle
+
+Из Windows/хоста:
+
+```text
+jdbc:oracle:thin:@//localhost:1521/XE
+```
+
+Из контейнера `food-card`:
+
+```text
+jdbc:oracle:thin:@//oracle:1521/XE
+```
+
+Из generator через `food_bridge`:
+
+```text
+jdbc:oracle:thin:@//food_card_oracle:1521/XE
+```
+
+## Подключение к PostgreSQL
+
+Из хоста:
+
+```text
+jdbc:postgresql://localhost:5432/postgres_db
+```
+
+Из контейнера:
+
+```text
+jdbc:postgresql://postgres:5432/postgres_db
+```
+
+## SQL-проверки
+
+Количество бизнес-записей:
+
+```sql
+SELECT COUNT(*)
+FROM GRU.GRU_VISTA_TAB;
+```
+
+Статусы:
+
+```sql
+SELECT FOC_STATUS, COUNT(*)
+FROM GRU.GRU_VISTA_TAB
+GROUP BY FOC_STATUS;
+```
+
+Полностью очистить VISTA для нового теста:
+
+```sql
+TRUNCATE TABLE GRU.GRU_VISTA_TAB;
+```
+
+Через Docker:
+
+```bash
+docker exec -it food_card_oracle \
+  sqlplus gru/root@//localhost:1521/XE
+```
+
+## E2E-тест
+
+Для полного сценария:
+
+```text
+Generator
+   ↓ multipart
+Food-card
+   ↓
+GRU.GRU_VISTA_TAB (WAIT)
+   ↓
+App-adapter
+```
+
+1. Поднять `food-card`.
+2. Поднять Kafka.
+3. Запустить `app-adapter`.
+4. Запустить generator.
+5. В generator вызвать `/api/parametres`.
+6. Проверить успешную обработку файла.
+7. Проверить строки `WAIT` в `GRU.GRU_VISTA_TAB`.
+8. Проверить, что adapter забирает их для отправки в Kafka.
+
+## Важные замечания
+
+### Oracle ORA-12505
+
+Для Oracle XE использовать service-name URL:
+
+```text
+jdbc:oracle:thin:@//oracle:1521/XE
+```
+
+Не использовать старую SID-форму, если listener зарегистрировал только service `XE`.
+
+### Дублирование файлов
+
+Если generator одновременно:
+
+- отправляет файл через multipart;
+- пишет этот же файл в shared-directory,
+
+food-card может увидеть один файл дважды.
+
+Для чистого теста рекомендуется использовать только один транспорт.
+
+### Liquibase ownership
+
+- `food-card` создаёт и мигрирует `pom.*` и `GRU.*`;
+- `app-adapter` создаёт только `ACC_APP_ADAPTER.*`;
+- generator не владеет Liquibase-миграциями.
