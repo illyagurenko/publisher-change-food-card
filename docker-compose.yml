@@ -1,112 +1,94 @@
+version: '3.8'
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: food_card_postgres
-
     environment:
       POSTGRES_DB: postgres_db
       POSTGRES_USER: user
       POSTGRES_PASSWORD: root
-
+      TZ: Europe/Moscow
     ports:
-      - "5432:5432"
-
+      - 5432:5432
     volumes:
       - pgdata:/var/lib/postgresql/data
-
+      - /etc/localtime:/etc/localtime:ro
     healthcheck:
-      test:
-        - CMD-SHELL
-        - pg_isready -U user -d postgres_db
+      test: [ "CMD-SHELL", "pg_isready -U user -d postgres_db" ]
       interval: 5s
       timeout: 5s
       retries: 5
-
-    networks:
-      - default
-
-
-  oracle:
-    image: gvenzl/oracle-xe:11-slim
-    container_name: food_card_oracle
-
-    environment:
-      ORACLE_PASSWORD: root
-      APP_USER: gru
-      APP_USER_PASSWORD: root
-
-    ports:
-      - "1521:1521"
-
-    volumes:
-      - oracledata:/u01/app/oracle
-
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - echo 'SELECT 1 FROM DUAL;' | sqlplus -S gru/root@//localhost:1521/XE || exit 1
-      interval: 10s
-      timeout: 5s
-      retries: 15
-      start_period: 30s
-
     networks:
       - default
       - food_bridge
 
+  oracle:
+    image: gvenzl/oracle-xe:11-slim
+    container_name: food_card_oracle
+    environment:
+      ORACLE_PASSWORD: root
+      APP_USER: gru
+      APP_USER_PASSWORD: root
+      TZ: Europe/Moscow
+    ports:
+      - 1521:1521
+    volumes:
+      - oracledata:/u01/app/oracle
+      - ./oracle-init:/container-entrypoint-initdb.d
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "echo 'SELECT 1 FROM DUAL;' | sqlplus -S system/root@//localhost:1521/XE || exit 1" ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - default
+      - food_bridge
 
   app:
     build:
       context: .
       dockerfile: Dockerfile
-
     container_name: food-card-app
-
     ports:
-      - "8081:8081"
-      - "9090:9090"
-
+      - 8081:8081
+      - 9090:9090
     environment:
       # PostgreSQL
-      SPRING_DATASOURCE_POSTGRES_URL: "jdbc:postgresql://postgres:5432/postgres_db"
+      SPRING_DATASOURCE_POSTGRES_URL: jdbc:postgresql://food_card_postgres:5432/postgres_db
       SPRING_DATASOURCE_POSTGRES_USERNAME: user
       SPRING_DATASOURCE_POSTGRES_PASSWORD: root
-
       # Oracle
-      SPRING_DATASOURCE_ORACLE_URL: "jdbc:oracle:thin:@//oracle:1521/XE"
+      SPRING_DATASOURCE_ORACLE_URL: jdbc:oracle:thin:@//food_card_oracle:1521/XE
       SPRING_DATASOURCE_ORACLE_USERNAME: gru
       SPRING_DATASOURCE_ORACLE_PASSWORD: root
-
       # Files
       SPRING_FILES_DIR: /app/input_files
       SPRING_FILES_DATA: /app/data
-      SPRING_FILES_SCAN_INTERVAL: "5000"
-
+      SPRING_FILES_SCAN_INTERVAL: 5000
       # Timezone
       TZ: Europe/Moscow
       SPRING_JPA_PROPERTIES_ORACLE_JDBC_TIMEZONEASREGION: "false"
-
     volumes:
       - ./data:/app/data
       - D:/gpb_tasks/shared_exchange:/app/input_files
       - ./config:/app/config
-
+      - /etc/localtime:/etc/localtime:ro
     depends_on:
       postgres:
         condition: service_healthy
-
       oracle:
         condition: service_healthy
-
+    entrypoint: [ "sh", "-c", "sleep 40 && java -jar /app/*.jar" ]
     networks:
       - default
       - food_bridge
 
-
 volumes:
   pgdata:
   oracledata:
-
 
 networks:
   food_bridge:

@@ -1,0 +1,10 @@
+-- oracle-init/01-init.sql
+ALTER SESSION SET CURRENT_SCHEMA = SYSTEM;
+
+-- 1. Создаем пользователя ACC_APP_ADAPTER
+CREATE USER ACC_APP_ADAPTER IDENTIFIED BY root;
+GRANT CONNECT, RESOURCE, UNLIMITED TABLESPACE TO ACC_APP_ADAPTER;
+
+-- 2. Пользователь GRU уже создан контейнером (через APP_USER),
+-- но явно выдаем ему UNLIMITED TABLESPACE на всякий случай
+GRANT UNLIMITED TABLESPACE TO GRU;
