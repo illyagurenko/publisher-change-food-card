@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: root
       TZ: Europe/Moscow
     ports:
-      - 5432:5432
+      - 5433:5432
     volumes:
       - pgdata:/var/lib/postgresql/data
       - /etc/localtime:/etc/localtime:ro
@@ -54,7 +54,7 @@ services:
       dockerfile: Dockerfile
     container_name: food-card-app
     ports:
-      - 8081:8081
+      - 8084:8081
       - 9090:9090
     environment:
       # PostgreSQL

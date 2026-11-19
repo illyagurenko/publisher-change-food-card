@@ -20,7 +20,7 @@ spring:
       password: root
       driverClassName: oracle.jdbc.OracleDriver
     postgres:
-      url: jdbc:postgresql://localhost:5432/postgres_db
+      url: jdbc:postgresql://${POSTGRES_HOST:-localhost}:${POSTGRES_PORT:-5433}/postgres_db
       username: user
       password: root
       driverClassName: org.postgresql.Driver
