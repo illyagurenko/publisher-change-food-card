@@ -122,13 +122,27 @@ git clone https://github.com/illyagurenko/publisher-change-food-card
 cd publisher-change-food-card
 ```
 
-### Шаг 2. Создание Docker-сети
+### Шаг 2. Настройка переменных окружения (`.env`)
+Создайте файл `.env` в корне проекта (или скопируйте из `.env.example`):
+```bash
+cp .env.example .env
+```
+Пример содержимого `.env`:
+```properties
+# Директория обмена входными файлами
+SHARED_EXCHANGE_DIR=./input_files
+
+# Порт PostgreSQL для Publisher на хосте (разведен с changer: 5432)
+POSTGRES_PORT=5433
+```
+
+### Шаг 3. Создание Docker-сети
 Создайте общую сеть `food_bridge`:
 ```bash
 docker network create food_bridge
 ```
 
-### Шаг 3. Запуск баз данных (Oracle и PostgreSQL)
+### Шаг 4. Запуск баз данных (Oracle и PostgreSQL)
 ```bash
 docker compose up -d oracle postgres
 ```
@@ -138,7 +152,7 @@ docker compose ps
 ```
 *При старте контейнера `food_card_oracle` пользователь `ACC_APP_ADAPTER` и права для `GRU` создаются автоматически.*
 
-### Шаг 4. Сборка приложения через Gradle
+### Шаг 5. Сборка приложения через Gradle
 * **Для Windows (PowerShell / CMD):**
   ```powershell
   .\gradlew.bat clean build -x test
@@ -148,13 +162,13 @@ docker compose ps
   ./gradlew clean build -x test
   ```
 
-### Шаг 5. Сборка Docker-образа и запуск сервиса
+### Шаг 6. Сборка Docker-образа и запуск сервиса
 ```bash
 docker compose build app
 docker compose up -d app
 ```
 
-### Шаг 6. Проверка работоспособности
+### Шаг 7. Проверка работоспособности
 1. **Просмотр логов запуска и выполнения миграций Liquibase:**
    ```bash
    docker logs -f food-card-app
