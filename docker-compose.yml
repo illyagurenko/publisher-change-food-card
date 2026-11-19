@@ -36,6 +36,7 @@ services:
     volumes:
       - oracledata:/u01/app/oracle
       - ./oracle-init:/container-entrypoint-initdb.d
+      - ./oracle-init:/container-entrypoint-startdb.d
       - /etc/localtime:/etc/localtime:ro
     healthcheck:
       test: [ "CMD-SHELL", "echo 'SELECT 1 FROM DUAL;' | sqlplus -S system/root@//localhost:1521/XE || exit 1" ]

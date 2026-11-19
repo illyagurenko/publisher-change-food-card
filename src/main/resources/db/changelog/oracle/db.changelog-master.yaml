@@ -8,9 +8,9 @@ databaseChangeLog:
       relativeToChangelogFile: true
 
   - include:
-      file: 003-gru-processing-state.sql
+      file: 003-gru-indexes-grants.sql
       relativeToChangelogFile: true
 
   - include:
-      file: 004-gru-indexes-grants.sql
+      file: 004-gru-vista-timestamp-update.sql
       relativeToChangelogFile: true

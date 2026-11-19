@@ -40,7 +40,7 @@ public class GruVistaTab {
     private BigDecimal xalfa;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "OPERATION", length = 2)
+    @Column(name = "OPERATION", length = 3)
     private Type operation;
 
     @Column(name = "TIME_STAMP")
@@ -73,4 +73,7 @@ public class GruVistaTab {
     @Enumerated(EnumType.STRING)
     @Column(name = "FOC_TYPE", length = 10)
     private ProcType focType;
+
+    @Column(name = "SVFE_LOAD_ID", length = 36)
+    private String svfeLoadId;
 }
