@@ -41,6 +41,9 @@ public class CheckDirService {
                     continue;
                 }
                 String fileName = filePath.getFileName().toString();
+                if (fileName.startsWith(".") || Files.isHidden(filePath)) {
+                    continue;
+                }
 
                 if (pomDao.existsByFilename(fileName)) {
                     continue;
