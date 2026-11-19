@@ -19,5 +19,26 @@ BEGIN
     -- но явно гарантируем ему необходимые квоты и права
     EXECUTE IMMEDIATE 'GRANT UNLIMITED TABLESPACE TO GRU';
     EXECUTE IMMEDIATE 'GRANT CREATE USER TO GRU';
+
+    -- 4. Автоматическое расширение Redo Log журналов до 200 МБ для предотвращения Checkpoint not complete
+    DECLARE
+        v_large_redo_count NUMBER;
+    BEGIN
+        SELECT COUNT(*) INTO v_large_redo_count FROM v$log WHERE bytes >= 100*1024*1024;
+        IF v_large_redo_count = 0 THEN
+            BEGIN
+                EXECUTE IMMEDIATE 'ALTER DATABASE ADD LOGFILE GROUP 3 SIZE 200M';
+            EXCEPTION WHEN OTHERS THEN NULL;
+            END;
+            BEGIN
+                EXECUTE IMMEDIATE 'ALTER DATABASE ADD LOGFILE GROUP 4 SIZE 200M';
+            EXCEPTION WHEN OTHERS THEN NULL;
+            END;
+            BEGIN
+                EXECUTE IMMEDIATE 'ALTER DATABASE ADD LOGFILE GROUP 5 SIZE 200M';
+            EXCEPTION WHEN OTHERS THEN NULL;
+            END;
+        END IF;
+    END;
 END;
 /
